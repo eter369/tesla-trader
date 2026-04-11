@@ -120,81 +120,113 @@ function NewsRow({ d, isTop, delay }) {
   );
 }
 
-async function fetchCryptoNews() {
-  // Try CryptoPanic public RSS-like API
-  try {
-    const res = await fetch("https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true&kind=news&filter=hot&regions=en");
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.results?.length > 0) {
-        return parseNews(data.results, "CryptoPanic");
-      }
-    }
-  } catch {}
-
-  // Fallback: CoinGecko status/trending as news proxy
-  try {
-    const res = await fetch("https://api.coingecko.com/api/v3/search/trending");
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.coins?.length > 0) {
-        return parseTrending(data.coins);
-      }
-    }
-  } catch {}
-
-  return null;
-}
-
-function parseNews(results, source) {
-  const articles = results.slice(0, 8).map((item) => {
-    const coins = (item.currencies || []).map(c => c.code).filter(Boolean);
-    const votes = item.votes || {};
-    const positive = (votes.positive || 0) + (votes.important || 0);
-    const negative = (votes.negative || 0) + (votes.toxic || 0);
-    let impact = "neutral";
-    if (positive > negative + 1) impact = "bullish";
-    else if (negative > positive + 1) impact = "bearish";
-
-    return {
-      t: item.title || "",
-      i: impact,
-      coins,
-      date: formatDate(item.published_at || item.created_at),
-      time: formatTime(item.published_at || item.created_at),
-      ago: formatTimeAgo(item.published_at || item.created_at),
-      url: item.url,
-    };
-  });
+function parseArticle(item) {
+  const coins = (item.currencies || []).map(c => c.code).filter(Boolean);
+  const votes = item.votes || {};
+  const positive = (votes.positive || 0) + (votes.important || 0);
+  const negative = (votes.negative || 0) + (votes.toxic || 0);
+  let impact = "neutral";
+  if (positive > negative + 1) impact = "bullish";
+  else if (negative > positive + 1) impact = "bearish";
 
   return {
-    top: articles.slice(0, 3),
-    other: articles.slice(3),
-    week: getWeekRange(),
-    source,
-    lastUpdate: new Date().toISOString(),
+    t: item.title || "",
+    i: impact,
+    coins,
+    date: formatDate(item.published_at || item.created_at),
+    time: formatTime(item.published_at || item.created_at),
+    ago: formatTimeAgo(item.published_at || item.created_at),
+    url: item.url,
+    ts: new Date(item.published_at || item.created_at).getTime(),
   };
 }
 
-function parseTrending(coins) {
-  const articles = coins.slice(0, 6).map((c) => {
-    const coin = c.item;
-    const change = coin.data?.price_change_percentage_24h?.usd || 0;
-    return {
-      t: `${coin.name} (${coin.symbol}) trending — ${change >= 0 ? "+" : ""}${change.toFixed(1)}% en 24h`,
-      i: change > 2 ? "bullish" : change < -2 ? "bearish" : "neutral",
-      coins: [coin.symbol?.toUpperCase()],
-      date: formatDate(new Date().toISOString()),
-      time: formatTime(new Date().toISOString()),
-      ago: "ahora",
-    };
-  });
+async function fetchFromCryptoPanic(filter) {
+  const res = await fetch(
+    `https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true&kind=news&filter=${filter}&regions=en`
+  );
+  if (!res.ok) throw new Error("API error");
+  const data = await res.json();
+  if (!data?.results?.length) throw new Error("No results");
+  return data.results.map(parseArticle);
+}
+
+async function fetchCryptoNews() {
+  const now = Date.now();
+  const oneDayAgo = now - 24 * 60 * 60 * 1000;
+
+  let weeklyTop = [];
+  let dailyNews = [];
+  let source = null;
+
+  // Fetch important news (weekly top stories)
+  try {
+    weeklyTop = await fetchFromCryptoPanic("important");
+    source = "CryptoPanic";
+  } catch {
+    try {
+      weeklyTop = await fetchFromCryptoPanic("hot");
+      source = "CryptoPanic";
+    } catch {}
+  }
+
+  // Fetch rising/recent news (today's news)
+  try {
+    const rising = await fetchFromCryptoPanic("rising");
+    dailyNews = rising.filter(a => a.ts >= oneDayAgo);
+    if (!source) source = "CryptoPanic";
+  } catch {}
+
+  // If we got weekly but no daily, split by date
+  if (weeklyTop.length > 0 && dailyNews.length === 0) {
+    dailyNews = weeklyTop.filter(a => a.ts >= oneDayAgo);
+    weeklyTop = weeklyTop.filter(a => a.ts < oneDayAgo);
+    // If all are from today, keep top 3 as weekly highlights
+    if (weeklyTop.length === 0) {
+      weeklyTop = dailyNews.slice(0, 3);
+      dailyNews = dailyNews.slice(3);
+    }
+  }
+
+  // Remove duplicates from daily that already appear in weekly
+  const weeklyTitles = new Set(weeklyTop.map(a => a.t));
+  dailyNews = dailyNews.filter(a => !weeklyTitles.has(a.t));
+
+  // Fallback: CoinGecko trending
+  if (weeklyTop.length === 0 && dailyNews.length === 0) {
+    try {
+      const res = await fetch("https://api.coingecko.com/api/v3/search/trending");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.coins?.length > 0) {
+          const trending = data.coins.slice(0, 6).map((c) => {
+            const coin = c.item;
+            const change = coin.data?.price_change_percentage_24h?.usd || 0;
+            return {
+              t: `${coin.name} (${coin.symbol}) trending — ${change >= 0 ? "+" : ""}${change.toFixed(1)}% en 24h`,
+              i: change > 2 ? "bullish" : change < -2 ? "bearish" : "neutral",
+              coins: [coin.symbol?.toUpperCase()],
+              date: formatDate(new Date().toISOString()),
+              time: formatTime(new Date().toISOString()),
+              ago: "ahora",
+              ts: now,
+            };
+          });
+          weeklyTop = trending.slice(0, 3);
+          dailyNews = trending.slice(3);
+          source = "CoinGecko Trending";
+        }
+      }
+    } catch {}
+  }
+
+  if (weeklyTop.length === 0 && dailyNews.length === 0) return null;
 
   return {
-    top: articles.slice(0, 3),
-    other: articles.slice(3),
+    top: weeklyTop.slice(0, 5),
+    other: dailyNews.slice(0, 5),
     week: getWeekRange(),
-    source: "CoinGecko Trending",
+    source,
     lastUpdate: new Date().toISOString(),
   };
 }
@@ -275,7 +307,7 @@ export default function CryptoNews({ livePrices, marketData }) {
             </div>
           ) : news ? (
             <>
-              <div className="text-[8px] font-black tracking-[3px] text-amber-400/50 mb-1">TOP NOTICIAS</div>
+              <div className="text-[8px] font-black tracking-[3px] text-amber-400/50 mb-1">TOP NOTICIAS DE LA SEMANA</div>
               {news.top.map((d, i) => (
                 <NewsRow key={`top-${i}`} d={d} isTop delay={i * 0.06} />
               ))}
@@ -283,7 +315,7 @@ export default function CryptoNews({ livePrices, marketData }) {
               {news.other.length > 0 && (
                 <>
                   <div className="h-px my-2" style={{ background: "linear-gradient(90deg, transparent, #7c3aed15, transparent)" }} />
-                  <div className="text-[8px] font-black tracking-[3px] text-purple-400/40 mb-1">MAS NOTICIAS</div>
+                  <div className="text-[8px] font-black tracking-[3px] text-purple-400/40 mb-1">NOTICIAS DE HOY</div>
                   {news.other.map((d, i) => (
                     <NewsRow key={`other-${i}`} d={d} isTop={false} delay={(i + 3) * 0.06} />
                   ))}
