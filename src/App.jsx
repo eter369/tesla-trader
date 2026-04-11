@@ -19,7 +19,6 @@ import CryptoNews from "./components/CryptoNews";
 import GlobalMetrics from "./components/GlobalMetrics";
 import BackgroundVideo from "./components/BackgroundVideo";
 import CenterVideo from "./components/CenterVideo";
-import CMC100Index from "./components/CMC100Index";
 import Footer from "./components/Footer";
 
 const CRYPTO_META = {
@@ -305,10 +304,9 @@ export default function App() {
               livePrice={livePrices[selectedCrypto]?.price}
             />
 
-            {/* Global Markets + CMC100 - visible on all screens (hidden on xl where sidebar shows it) */}
+            {/* Global Markets - visible on all screens (hidden on xl where sidebar shows it) */}
             <div className="xl:hidden">
               <GlobalMetrics />
-              <CMC100Index />
             </div>
 
             {/* Lunar Calendar 2026 */}
@@ -324,7 +322,6 @@ export default function App() {
               <CryptoNews livePrices={livePrices} marketData={marketData} />
               <CenterVideo />
               <GlobalMetrics />
-              <CMC100Index />
             </div>
           </div>
         </div>
