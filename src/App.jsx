@@ -129,63 +129,97 @@ export default function App() {
     localStorage.setItem("lunar-time-range", timeRange.toString());
   }, [timeRange]);
 
-  // Fetch Fear & Greed from CoinMarketCap + Alternative.me fallback
+  // Fetch Fear & Greed from CoinMarketCap + Alternative.me fallback (daily refresh + cache)
   useEffect(() => {
-    const cmcKey = localStorage.getItem("cmc-api-key");
+    const CACHE_KEY = "fng-cache";
+    const ONE_DAY = 24 * 60 * 60 * 1000;
 
-    // Try CoinMarketCap first
-    if (cmcKey) {
-      fetch("https://pro-api.coinmarketcap.com/v3/fear-and-greed/historical?limit=30", {
-        headers: { "X-CMC_PRO_API_KEY": cmcKey, Accept: "application/json" },
-      })
-        .then(r => {
-          if (!r.ok) throw new Error("CMC API error");
-          return r.json();
-        })
-        .then(d => {
-          if (d?.data?.length > 0) {
-            const latest = d.data[0];
-            const history = d.data.map(item => ({
-              value: Math.round(item.value),
-              date: item.timestamp,
-              classification: item.value_classification,
-            })).reverse();
-            setFearGreed({
-              value: Math.round(latest.value),
-              classification: latest.value_classification,
-              history,
-              source: "CoinMarketCap",
-            });
+    function loadCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const cached = JSON.parse(raw);
+        if (Date.now() - cached.ts < ONE_DAY) return cached.data;
+      } catch {}
+      return null;
+    }
+
+    function saveCache(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+      } catch {}
+    }
+
+    function parseCMC(d) {
+      const latest = d.data[0];
+      const history = d.data.map(item => ({
+        value: Math.round(item.value),
+        date: item.timestamp,
+        classification: item.value_classification,
+      })).reverse();
+      return {
+        value: Math.round(latest.value),
+        classification: latest.value_classification,
+        history,
+        source: "CoinMarketCap",
+      };
+    }
+
+    function parseAlternative(d) {
+      const latest = d.data[0];
+      const history = d.data.map(item => ({
+        value: parseInt(item.value),
+        date: new Date(parseInt(item.timestamp) * 1000).toISOString(),
+        classification: item.value_classification,
+      })).reverse();
+      return {
+        value: parseInt(latest.value),
+        classification: latest.value_classification,
+        history,
+        source: "Alternative.me",
+      };
+    }
+
+    async function fetchFearGreed() {
+      const cmcKey = localStorage.getItem("cmc-api-key");
+
+      if (cmcKey) {
+        try {
+          const res = await fetch("https://pro-api.coinmarketcap.com/v3/fear-and-greed/historical?limit=30", {
+            headers: { "X-CMC_PRO_API_KEY": cmcKey, Accept: "application/json" },
+          });
+          if (!res.ok) throw new Error("CMC error");
+          const json = await res.json();
+          if (json?.data?.length > 0) {
+            const result = parseCMC(json);
+            setFearGreed(result);
+            saveCache(result);
             return;
           }
-          throw new Error("No CMC data");
-        })
-        .catch(() => fetchAlternativeFnG());
-    } else {
-      fetchAlternativeFnG();
+        } catch {}
+      }
+
+      try {
+        const res = await fetch("https://api.alternative.me/fng/?limit=30");
+        const json = await res.json();
+        if (json?.data?.length > 0) {
+          const result = parseAlternative(json);
+          setFearGreed(result);
+          saveCache(result);
+        }
+      } catch {}
     }
 
-    function fetchAlternativeFnG() {
-      fetch("https://api.alternative.me/fng/?limit=30")
-        .then(r => r.json())
-        .then(d => {
-          if (d?.data?.length > 0) {
-            const latest = d.data[0];
-            const history = d.data.map(item => ({
-              value: parseInt(item.value),
-              date: new Date(parseInt(item.timestamp) * 1000).toISOString(),
-              classification: item.value_classification,
-            })).reverse();
-            setFearGreed({
-              value: parseInt(latest.value),
-              classification: latest.value_classification,
-              history,
-              source: "Alternative.me",
-            });
-          }
-        })
-        .catch(() => {});
+    // Load cache immediately, then fetch fresh if stale
+    const cached = loadCache();
+    if (cached) {
+      setFearGreed(cached);
     }
+    fetchFearGreed();
+
+    // Re-check every hour; fetchFearGreed uses cache-aware logic
+    const interval = setInterval(fetchFearGreed, 60 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const coin = marketData[selectedCrypto];
