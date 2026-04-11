@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Newspaper, Clock, TrendingUp, TrendingDown, Minus, Star, RefreshCw } from "lucide-react";
+import { Newspaper, Clock, Star, RefreshCw, ExternalLink } from "lucide-react";
 
 const IMPACT = {
   bullish: { color: "#10b981", arrow: "↑" },
@@ -10,6 +10,39 @@ const IMPACT = {
 const COIN_COLORS = {
   BTC: "#f7931a", ETH: "#627eea", SOL: "#9945ff", BNB: "#f0b90b",
   XRP: "#00aae4", ADA: "#0033ad", DOGE: "#c2a633", DOT: "#e6007a",
+  AVAX: "#e84142", LINK: "#2a5ada", MATIC: "#8247e5", UNI: "#ff007a",
+};
+
+const COIN_KEYWORDS = {
+  BTC: ["bitcoin", "btc", "satoshi"],
+  ETH: ["ethereum", "eth", "vitalik"],
+  SOL: ["solana", "sol"],
+  BNB: ["binance", "bnb"],
+  XRP: ["ripple", "xrp"],
+  ADA: ["cardano", "ada"],
+  DOGE: ["dogecoin", "doge"],
+  AVAX: ["avalanche", "avax"],
+  LINK: ["chainlink", "link"],
+  DOT: ["polkadot"],
+};
+
+const BULLISH_WORDS = ["surge", "rally", "soar", "bull", "gain", "record", "high", "pump", "breakout", "approval", "adopt", "launch", "partner", "milestone", "growth", "profit", "boom", "etf approved", "institutional", "sube", "alza", "récord"];
+const BEARISH_WORDS = ["crash", "drop", "plunge", "bear", "fall", "hack", "exploit", "ban", "lawsuit", "sec", "fraud", "scam", "dump", "selloff", "baja", "caída", "hack"];
+
+// RSS feeds from top crypto news sources
+const RSS_FEEDS = [
+  { url: "https://cointelegraph.com/rss", source: "CoinTelegraph", priority: 1 },
+  { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", source: "CoinDesk", priority: 1 },
+  { url: "https://decrypt.co/feed", source: "Decrypt", priority: 2 },
+  { url: "https://bitcoinmagazine.com/.rss/full/", source: "Bitcoin Magazine", priority: 2 },
+];
+
+const SOURCE_COLORS = {
+  CoinTelegraph: "#1a1a2e",
+  CoinDesk: "#0a2540",
+  Decrypt: "#1e293b",
+  "Bitcoin Magazine": "#f7931a",
+  CryptoPanic: "#3b82f6",
 };
 
 function formatTimeAgo(dateStr) {
@@ -25,7 +58,7 @@ function formatTimeAgo(dateStr) {
 function formatDate(dateStr) {
   const d = new Date(dateStr);
   const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
 function formatTime(dateStr) {
@@ -36,11 +69,27 @@ function formatTime(dateStr) {
 function getWeekRange() {
   const now = new Date();
   const start = new Date(now);
-  start.setDate(now.getDate() - now.getDay());
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
+  start.setDate(now.getDate() - 6);
   const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  return `${start.getDate()} ${months[start.getMonth()]} - ${end.getDate()} ${months[end.getMonth()]} ${end.getFullYear()}`;
+  return `${start.getDate()} ${months[start.getMonth()]} - ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+}
+
+function detectCoins(title) {
+  const lower = title.toLowerCase();
+  const found = [];
+  for (const [symbol, keywords] of Object.entries(COIN_KEYWORDS)) {
+    if (keywords.some(k => lower.includes(k))) found.push(symbol);
+  }
+  return found;
+}
+
+function detectSentiment(title) {
+  const lower = title.toLowerCase();
+  const bull = BULLISH_WORDS.filter(w => lower.includes(w)).length;
+  const bear = BEARISH_WORDS.filter(w => lower.includes(w)).length;
+  if (bull > bear) return "bullish";
+  if (bear > bull) return "bearish";
+  return "neutral";
 }
 
 function PriceTicker({ livePrices, marketData }) {
@@ -82,7 +131,8 @@ function PriceTicker({ livePrices, marketData }) {
 function NewsRow({ d, isTop, delay }) {
   const impact = IMPACT[d.i] || IMPACT.neutral;
   return (
-    <div className="group relative py-3 border-b border-gray-800/20 last:border-0 animate-slide-in"
+    <a href={d.url} target="_blank" rel="noopener noreferrer"
+      className="group relative block py-2.5 border-b border-gray-800/20 last:border-0 animate-slide-in cursor-pointer"
       style={{ animationDelay: `${delay}s` }}>
       <div className="flex items-start gap-2.5">
         <div className="mt-1 w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-[10px] font-black"
@@ -96,110 +146,123 @@ function NewsRow({ d, isTop, delay }) {
                 <Star size={7} fill="currentColor" /> TOP
               </span>
             )}
-            <span className="text-[9px] text-gray-600 font-mono">
-              {d.date} · {d.time}
-            </span>
+            {d.source && (
+              <span className="text-[7px] font-bold tracking-wider px-1.5 py-px rounded"
+                style={{ color: "#9ca3af", background: "#ffffff06" }}>
+                {d.source}
+              </span>
+            )}
             <span className="text-[9px] text-gray-700 font-mono ml-auto">{d.ago}</span>
           </div>
-          <h4 className="text-[12px] font-bold text-gray-200 leading-snug mb-1 group-hover:text-amber-300/90 transition-colors">
+          <h4 className="text-[11px] font-bold text-gray-200 leading-snug mb-1 group-hover:text-amber-300/90 transition-colors">
             {d.t}
           </h4>
-          {d.coins && d.coins.length > 0 && (
-            <div className="flex gap-1 mt-1">
-              {d.coins.slice(0, 3).map((c) => (
-                <span key={c} className="text-[8px] font-bold px-1.5 py-px rounded"
-                  style={{ color: COIN_COLORS[c] || "#9ca3af", background: (COIN_COLORS[c] || "#9ca3af") + "12" }}>
-                  {c}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="flex items-center gap-1 flex-wrap">
+            {d.coins?.slice(0, 3).map((c) => (
+              <span key={c} className="text-[7px] font-bold px-1.5 py-px rounded"
+                style={{ color: COIN_COLORS[c] || "#9ca3af", background: (COIN_COLORS[c] || "#9ca3af") + "12" }}>
+                {c}
+              </span>
+            ))}
+            <span className="text-[8px] text-gray-700 font-mono ml-auto">
+              {d.date}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+    </a>
   );
 }
 
-function parseArticle(item) {
-  const coins = (item.currencies || []).map(c => c.code).filter(Boolean);
-  const votes = item.votes || {};
-  const positive = (votes.positive || 0) + (votes.important || 0);
-  const negative = (votes.negative || 0) + (votes.toxic || 0);
-  let impact = "neutral";
-  if (positive > negative + 1) impact = "bullish";
-  else if (negative > positive + 1) impact = "bearish";
-
-  return {
-    t: item.title || "",
-    i: impact,
-    coins,
-    date: formatDate(item.published_at || item.created_at),
-    time: formatTime(item.published_at || item.created_at),
-    ago: formatTimeAgo(item.published_at || item.created_at),
-    url: item.url,
-    ts: new Date(item.published_at || item.created_at).getTime(),
-  };
-}
-
-async function fetchFromCryptoPanic(filter) {
+async function fetchRSS(feed) {
   const res = await fetch(
-    `https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true&kind=news&filter=${filter}&regions=en`
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`
   );
-  if (!res.ok) throw new Error("API error");
-  const data = await res.json();
-  if (!data?.results?.length) throw new Error("No results");
-  return data.results.map(parseArticle);
+  if (!res.ok) throw new Error("RSS fetch failed");
+  const xml = await res.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, "text/xml");
+  const items = doc.querySelectorAll("item");
+  if (!items.length) throw new Error("No items");
+
+  const articles = [];
+  items.forEach((item, idx) => {
+    if (idx >= 15) return;
+    const title = item.querySelector("title")?.textContent?.trim() || "";
+    const link = item.querySelector("link")?.textContent?.trim() || "";
+    const pubDate = item.querySelector("pubDate")?.textContent?.trim() || "";
+    if (!title) return;
+    articles.push({
+      t: title,
+      i: detectSentiment(title),
+      coins: detectCoins(title),
+      date: formatDate(pubDate),
+      time: formatTime(pubDate),
+      ago: formatTimeAgo(pubDate),
+      url: link,
+      source: feed.source,
+      priority: feed.priority,
+      ts: new Date(pubDate).getTime(),
+    });
+  });
+  return articles;
 }
 
 async function fetchCryptoNews() {
   const now = Date.now();
   const oneDayAgo = now - 24 * 60 * 60 * 1000;
+  const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
 
-  let weeklyTop = [];
-  let dailyNews = [];
-  let source = null;
+  let allArticles = [];
 
-  // Fetch important news (weekly top stories)
-  try {
-    weeklyTop = await fetchFromCryptoPanic("important");
-    source = "CryptoPanic";
-  } catch {
-    try {
-      weeklyTop = await fetchFromCryptoPanic("hot");
-      source = "CryptoPanic";
-    } catch {}
-  }
-
-  // Fetch rising/recent news (today's news)
-  try {
-    const rising = await fetchFromCryptoPanic("rising");
-    dailyNews = rising.filter(a => a.ts >= oneDayAgo);
-    if (!source) source = "CryptoPanic";
-  } catch {}
-
-  // If we got weekly but no daily, split by date
-  if (weeklyTop.length > 0 && dailyNews.length === 0) {
-    dailyNews = weeklyTop.filter(a => a.ts >= oneDayAgo);
-    weeklyTop = weeklyTop.filter(a => a.ts < oneDayAgo);
-    // If all are from today, keep top 3 as weekly highlights
-    if (weeklyTop.length === 0) {
-      weeklyTop = dailyNews.slice(0, 3);
-      dailyNews = dailyNews.slice(3);
+  // Fetch from RSS feeds in parallel
+  const results = await Promise.allSettled(RSS_FEEDS.map(f => fetchRSS(f)));
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      allArticles.push(...result.value);
     }
   }
 
-  // Remove duplicates from daily that already appear in weekly
-  const weeklyTitles = new Set(weeklyTop.map(a => a.t));
-  dailyNews = dailyNews.filter(a => !weeklyTitles.has(a.t));
+  // Fallback: CryptoPanic
+  if (allArticles.length === 0) {
+    try {
+      const res = await fetch(
+        "https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true&kind=news&filter=important&regions=en"
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.results?.length) {
+          allArticles = data.results.map(item => {
+            const coins = (item.currencies || []).map(c => c.code).filter(Boolean);
+            const votes = item.votes || {};
+            const pos = (votes.positive || 0) + (votes.important || 0);
+            const neg = (votes.negative || 0) + (votes.toxic || 0);
+            return {
+              t: item.title || "",
+              i: pos > neg + 1 ? "bullish" : neg > pos + 1 ? "bearish" : "neutral",
+              coins,
+              date: formatDate(item.published_at || item.created_at),
+              time: formatTime(item.published_at || item.created_at),
+              ago: formatTimeAgo(item.published_at || item.created_at),
+              url: item.url,
+              source: "CryptoPanic",
+              priority: 1,
+              ts: new Date(item.published_at || item.created_at).getTime(),
+            };
+          });
+        }
+      }
+    } catch {}
+  }
 
-  // Fallback: CoinGecko trending
-  if (weeklyTop.length === 0 && dailyNews.length === 0) {
+  // Last fallback: CoinGecko trending
+  if (allArticles.length === 0) {
     try {
       const res = await fetch("https://api.coingecko.com/api/v3/search/trending");
       if (res.ok) {
         const data = await res.json();
         if (data?.coins?.length > 0) {
-          const trending = data.coins.slice(0, 6).map((c) => {
+          allArticles = data.coins.slice(0, 8).map(c => {
             const coin = c.item;
             const change = coin.data?.price_change_percentage_24h?.usd || 0;
             return {
@@ -209,24 +272,62 @@ async function fetchCryptoNews() {
               date: formatDate(new Date().toISOString()),
               time: formatTime(new Date().toISOString()),
               ago: "ahora",
+              source: "CoinGecko",
+              priority: 3,
               ts: now,
             };
           });
-          weeklyTop = trending.slice(0, 3);
-          dailyNews = trending.slice(3);
-          source = "CoinGecko Trending";
         }
       }
     } catch {}
   }
 
-  if (weeklyTop.length === 0 && dailyNews.length === 0) return null;
+  if (allArticles.length === 0) return null;
+
+  // Deduplicate by title similarity
+  const seen = new Set();
+  allArticles = allArticles.filter(a => {
+    const key = a.t.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Filter to last 7 days
+  const weekArticles = allArticles.filter(a => a.ts >= oneWeekAgo);
+  const todayArticles = weekArticles.filter(a => a.ts >= oneDayAgo);
+  const olderArticles = weekArticles.filter(a => a.ts < oneDayAgo);
+
+  // Weekly top: prioritize by source priority, then by date
+  // Top news = most important across the week (from tier 1 sources first)
+  const weeklyTop = olderArticles
+    .sort((a, b) => (a.priority - b.priority) || (b.ts - a.ts))
+    .slice(0, 6);
+
+  // If not enough older articles, take from today's for weekly
+  if (weeklyTop.length < 3) {
+    const extra = todayArticles
+      .sort((a, b) => (a.priority - b.priority) || (b.ts - a.ts))
+      .slice(0, 6 - weeklyTop.length);
+    weeklyTop.push(...extra);
+  }
+
+  // Daily: today's news not in weekly, sorted by date
+  const weeklyUrls = new Set(weeklyTop.map(a => a.url));
+  const dailyNews = todayArticles
+    .filter(a => !weeklyUrls.has(a.url))
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, 5);
+
+  // Determine primary source
+  const sources = new Set(allArticles.map(a => a.source));
+  const sourceStr = [...sources].slice(0, 3).join(" · ");
 
   return {
-    top: weeklyTop.slice(0, 5),
-    other: dailyNews.slice(0, 5),
+    top: weeklyTop,
+    other: dailyNews,
     week: getWeekRange(),
-    source,
+    source: sourceStr,
     lastUpdate: new Date().toISOString(),
   };
 }
@@ -234,21 +335,16 @@ async function fetchCryptoNews() {
 export default function CryptoNews({ livePrices, marketData }) {
   const [news, setNews] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState(null);
 
   const loadNews = useCallback(async () => {
     setLoading(true);
     const data = await fetchCryptoNews();
-    if (data) {
-      setNews(data);
-      setLastRefresh(new Date());
-    }
+    if (data) setNews(data);
     setLoading(false);
   }, []);
 
   useEffect(() => {
     loadNews();
-    // Refresh every 5 minutes
     const interval = setInterval(loadNews, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [loadNews]);
@@ -277,11 +373,11 @@ export default function CryptoNews({ livePrices, marketData }) {
           </div>
         </div>
 
-        {/* Week range + source */}
+        {/* Week range + sources */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[9px] text-gray-600 font-mono tracking-wider">{news?.week || "---"}</span>
           {news?.source && (
-            <span className="text-[8px] text-gray-700 font-mono">{news.source}</span>
+            <span className="text-[7px] text-gray-700 font-mono truncate ml-2 max-w-[160px]">{news.source}</span>
           )}
         </div>
 
@@ -307,17 +403,21 @@ export default function CryptoNews({ livePrices, marketData }) {
             </div>
           ) : news ? (
             <>
-              <div className="text-[8px] font-black tracking-[3px] text-amber-400/50 mb-1">TOP NOTICIAS DE LA SEMANA</div>
-              {news.top.map((d, i) => (
-                <NewsRow key={`top-${i}`} d={d} isTop delay={i * 0.06} />
-              ))}
+              {news.top.length > 0 && (
+                <>
+                  <div className="text-[8px] font-black tracking-[3px] text-amber-400/50 mb-1">TOP NOTICIAS DE LA SEMANA</div>
+                  {news.top.map((d, i) => (
+                    <NewsRow key={`top-${i}`} d={d} isTop delay={i * 0.05} />
+                  ))}
+                </>
+              )}
 
               {news.other.length > 0 && (
                 <>
                   <div className="h-px my-2" style={{ background: "linear-gradient(90deg, transparent, #7c3aed15, transparent)" }} />
                   <div className="text-[8px] font-black tracking-[3px] text-purple-400/40 mb-1">NOTICIAS DE HOY</div>
                   {news.other.map((d, i) => (
-                    <NewsRow key={`other-${i}`} d={d} isTop={false} delay={(i + 3) * 0.06} />
+                    <NewsRow key={`other-${i}`} d={d} isTop={false} delay={(i + 3) * 0.05} />
                   ))}
                 </>
               )}
