@@ -304,6 +304,11 @@ export default function App() {
               livePrice={livePrices[selectedCrypto]?.price}
             />
 
+            {/* Global Markets - visible on all screens (hidden on xl where sidebar shows it) */}
+            <div className="xl:hidden">
+              <GlobalMetrics />
+            </div>
+
             {/* Lunar Calendar 2026 */}
             <LunarCalendar2026 />
 
