@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npx --yes create-vite@latest temp-init --template react)",
+      "Bash(cp -r temp-init/* temp-init/.* .)",
+      "Bash(rm -rf temp-init)",
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(gh auth:*)",
+      "Bash(gh api:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh run:*)",
+      "mcp__mcp-registry__search_mcp_registry",
+      "Bash(nslookup tesla369.app)",
+      "Bash(curl -sI http://tesla369.app)",
+      "Bash(curl -sL \"https://image.mux.com/sDz01Os9GN02ltJvgikeaUvZWsLRiR5FX5GuadCRkQc7E/thumbnail.png?width=1200&height=630&fit_mode=smartcrop&time=2\" -o \"C:\\\\Users\\\\USUARIO\\\\Desktop\\\\TESLA TRADER\\\\public\\\\og-image.png\")",
+      "Bash(curl -sL \"https://image.mux.com/sDz01Os9GN02ltJvgikeaUvZWsLRiR5FX5GuadCRkQc7E/thumbnail.png?width=192&height=192&fit_mode=smartcrop&time=2\" -o \"C:\\\\Users\\\\USUARIO\\\\Desktop\\\\TESLA TRADER\\\\public\\\\favicon.png\")",
+      "Bash(curl -sI http://tesla369.app/og-image.png)",
+      "Bash(curl -sL \"https://image.mux.com/blULaJm2RMbAmsrwxLrBdgEx9yI1do2yM89vHTkdA6I/thumbnail.png?width=1200&height=630&fit_mode=smartcrop&time=3\" -o \"C:\\\\Users\\\\USUARIO\\\\Desktop\\\\TESLA TRADER\\\\public\\\\og-image.png\")",
+      "Bash(curl -sL \"https://image.mux.com/blULaJm2RMbAmsrwxLrBdgEx9yI1do2yM89vHTkdA6I/thumbnail.png?width=192&height=192&fit_mode=smartcrop&time=3\" -o \"C:\\\\Users\\\\USUARIO\\\\Desktop\\\\TESLA TRADER\\\\public\\\\favicon.png\")",
+      "Bash(identify \"/tmp/b142453d-b64e-4edc-99a7-15ae44dd0c04.tmp.png\")",
+      "Read(//tmp/**)",
+      "Bash(ls -lat /tmp/*.tmp.*)",
+      "Bash(ls -lat /tmp/*.jpg /tmp/*.jpeg /tmp/*.webp)",
+      "Bash(ls -lat C:UsersUSUARIOAppDataLocalTemp/*.png)",
+      "Bash(ls -lat C:tmp/*.png)",
+      "Bash(ls -lat C:UsersUSUARIODownloads/*.png)",
+      "Bash(node -e \":*)",
+      "Bash(ls -la /tmp/b142453d*.png)",
+      "Bash(cygpath -w /tmp/b142453d-b64e-4edc-99a7-15ae44dd0c04.tmp.png)",
+      "Bash(curl -sL \"https://image.mux.com/blULaJm2RMbAmsrwxLrBdgEx9yI1do2yM89vHTkdA6I/thumbnail.png?width=1200&height=630&fit_mode=smartcrop&time=1\" -o public/og-image.png)",
+      "Bash(curl -sL \"https://image.mux.com/blULaJm2RMbAmsrwxLrBdgEx9yI1do2yM89vHTkdA6I/thumbnail.png?width=192&height=192&fit_mode=smartcrop&time=1\" -o public/favicon.png)",
+      "Bash(cp /tmp/b142453d-b64e-4edc-99a7-15ae44dd0c04.tmp.png \"C:\\\\Users\\\\USUARIO\\\\Desktop\\\\TESLA TRADER\\\\crystal-src.png\")",
+      "Bash(curl -sI http://tesla369.app/og-image.jpg)",
+      "Bash(ls -la C:UsersUSUARIODesktop/*.png C:UsersUSUARIODesktop/*.jpg C:UsersUSUARIODesktop/*.jpeg C:UsersUSUARIODesktop/*.webp)",
+      "Bash(grep -iE '\\\\.\\(png|jpg|jpeg|webp\\)$')",
+      "Bash(curl -sI http://tesla369.app/og-crystal.jpg)",
+      "Bash(curl -s http://tesla369.app/)"
+    ]
+  }
+}
