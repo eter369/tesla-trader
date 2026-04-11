@@ -210,13 +210,16 @@ export default function CMC100Index() {
             change7d: w7d,
             change30d: w30d,
             change90d: null,
-            topCoins: coins.slice(0, 5).map(c => ({
-              symbol: c.symbol?.toUpperCase(),
-              name: c.name,
-              price: c.current_price,
-              change24h: c.price_change_percentage_24h,
-              weight: ((c.market_cap || 0) / totalMcap * 100),
-            })),
+            topCoins: coins
+              .filter(c => ["btc","eth","usdt","bnb","sol"].includes(c.id || c.symbol?.toLowerCase()))
+              .slice(0, 5)
+              .map(c => ({
+                symbol: c.symbol?.toUpperCase(),
+                name: c.name,
+                price: c.current_price,
+                change24h: c.price_change_percentage_24h,
+                weight: ((c.market_cap || 0) / totalMcap * 100),
+              })),
             lastUpdated: new Date().toISOString(),
           });
           setHistorical(hist);
