@@ -37,7 +37,9 @@
       "Bash(ls -la C:UsersUSUARIODesktop/*.png C:UsersUSUARIODesktop/*.jpg C:UsersUSUARIODesktop/*.jpeg C:UsersUSUARIODesktop/*.webp)",
       "Bash(grep -iE '\\\\.\\(png|jpg|jpeg|webp\\)$')",
       "Bash(curl -sI http://tesla369.app/og-crystal.jpg)",
-      "Bash(curl -s http://tesla369.app/)"
+      "Bash(curl -s http://tesla369.app/)",
+      "Bash(npm ci:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
