@@ -281,8 +281,8 @@ export default function App() {
           <div className="hidden xl:block">
             <div className="sticky top-4 overflow-y-auto scrollbar-hide" style={{ maxHeight: "calc(100vh - 2rem)" }}>
               <CryptoNews livePrices={livePrices} marketData={marketData} />
-              <GlobalMetrics />
               <CenterVideo />
+              <GlobalMetrics />
             </div>
           </div>
         </div>
