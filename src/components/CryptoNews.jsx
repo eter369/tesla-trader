@@ -26,8 +26,61 @@ const COIN_KEYWORDS = {
   DOT: ["polkadot"],
 };
 
-const BULLISH_WORDS = ["surge", "rally", "soar", "bull", "gain", "record", "high", "pump", "breakout", "approval", "adopt", "launch", "partner", "milestone", "growth", "profit", "boom", "etf approved", "institutional", "sube", "alza", "récord"];
-const BEARISH_WORDS = ["crash", "drop", "plunge", "bear", "fall", "hack", "exploit", "ban", "lawsuit", "sec", "fraud", "scam", "dump", "selloff", "baja", "caída", "hack"];
+const BULLISH_WORDS = ["surge", "rally", "soar", "bull", "gain", "record", "high", "pump", "breakout", "approval", "adopt", "launch", "partner", "milestone", "growth", "profit", "boom", "etf approved", "institutional", "sube", "alza", "récord", "all-time", "ath"];
+const BEARISH_WORDS = ["crash", "drop", "plunge", "bear", "fall", "hack", "exploit", "ban", "lawsuit", "sec charges", "fraud", "scam", "dump", "selloff", "baja", "caída", "liquidat", "bankrupt", "collapse"];
+
+// Keywords that indicate HIGH IMPACT for crypto trading
+const HIGH_IMPACT_WORDS = [
+  // Regulation & policy
+  "etf", "sec", "regulation", "regulat", "congress", "senate", "bill", "law", "legal", "ban",
+  "stablecoin", "cbdc", "fed", "federal reserve", "treasury", "executive order", "framework",
+  // Institutional & adoption
+  "institutional", "blackrock", "fidelity", "jpmorgan", "goldman", "morgan stanley", "bank",
+  "custody", "wall street", "pension", "sovereign", "adoption", "mainstream",
+  // Major market events
+  "halving", "etf approv", "etf reject", "listing", "delist", "liquidat", "billion",
+  "million", "record", "all-time", "ath", "crash", "rally", "surge", "plunge",
+  // Security & hacks
+  "hack", "exploit", "breach", "stolen", "vulnerability", "attack",
+  // Major projects
+  "bitcoin", "ethereum", "solana", "merge", "upgrade", "fork", "layer 2", "l2",
+  // Macro
+  "inflation", "interest rate", "rate cut", "recession", "tariff", "trade war",
+  "china", "trump", "biden",
+];
+
+// Filter out non-crypto noise
+const NOISE_WORDS = [
+  "horoscope", "zodiac", "celebrity gossip", "movie review", "sports score",
+  "weather forecast", "recipe", "fashion", "beauty tips",
+];
+
+function calcImpactScore(title) {
+  const lower = title.toLowerCase();
+  let score = 0;
+
+  // High impact keyword matches (core trading relevance)
+  for (const word of HIGH_IMPACT_WORDS) {
+    if (lower.includes(word)) score += 3;
+  }
+
+  // Coin mentions boost relevance
+  for (const keywords of Object.values(COIN_KEYWORDS)) {
+    if (keywords.some(k => lower.includes(k))) score += 2;
+  }
+
+  // Sentiment words = market-moving
+  for (const w of BULLISH_WORDS) { if (lower.includes(w)) score += 1; }
+  for (const w of BEARISH_WORDS) { if (lower.includes(w)) score += 1; }
+
+  // Numbers with $ or % indicate market data
+  if (/\$[\d,.]+[bmtk]/i.test(lower) || /\d+%/.test(lower)) score += 2;
+
+  // Noise penalty
+  for (const w of NOISE_WORDS) { if (lower.includes(w)) score -= 10; }
+
+  return score;
+}
 
 // RSS feeds from top crypto news sources
 const RSS_FEEDS = [
@@ -187,11 +240,14 @@ async function fetchRSS(feed) {
 
   const articles = [];
   items.forEach((item, idx) => {
-    if (idx >= 15) return;
+    if (idx >= 20) return;
     const title = item.querySelector("title")?.textContent?.trim() || "";
     const link = item.querySelector("link")?.textContent?.trim() || "";
     const pubDate = item.querySelector("pubDate")?.textContent?.trim() || "";
     if (!title) return;
+    const score = calcImpactScore(title);
+    // Skip articles with negative score (noise)
+    if (score < 0) return;
     articles.push({
       t: title,
       i: detectSentiment(title),
@@ -203,6 +259,7 @@ async function fetchRSS(feed) {
       source: feed.source,
       priority: feed.priority,
       ts: new Date(pubDate).getTime(),
+      score,
     });
   });
   return articles;
@@ -293,30 +350,20 @@ async function fetchCryptoNews() {
     return true;
   });
 
-  // Filter to last 7 days
-  const weekArticles = allArticles.filter(a => a.ts >= oneWeekAgo);
+  // Filter to last 7 days and only crypto-relevant (score > 0)
+  const weekArticles = allArticles.filter(a => a.ts >= oneWeekAgo && (a.score || 0) >= 0);
   const todayArticles = weekArticles.filter(a => a.ts >= oneDayAgo);
-  const olderArticles = weekArticles.filter(a => a.ts < oneDayAgo);
 
-  // Weekly top: prioritize by source priority, then by date
-  // Top news = most important across the week (from tier 1 sources first)
-  const weeklyTop = olderArticles
-    .sort((a, b) => (a.priority - b.priority) || (b.ts - a.ts))
+  // TOP NOTICIAS DE LA SEMANA: highest impact score across ALL 7 days
+  const weeklyTop = [...weekArticles]
+    .sort((a, b) => (b.score || 0) - (a.score || 0) || (b.ts - a.ts))
     .slice(0, 6);
 
-  // If not enough older articles, take from today's for weekly
-  if (weeklyTop.length < 3) {
-    const extra = todayArticles
-      .sort((a, b) => (a.priority - b.priority) || (b.ts - a.ts))
-      .slice(0, 6 - weeklyTop.length);
-    weeklyTop.push(...extra);
-  }
-
-  // Daily: today's news not in weekly, sorted by date
+  // NOTICIAS DE HOY: today's news not already in weekly, sorted by impact then recency
   const weeklyUrls = new Set(weeklyTop.map(a => a.url));
   const dailyNews = todayArticles
     .filter(a => !weeklyUrls.has(a.url))
-    .sort((a, b) => b.ts - a.ts)
+    .sort((a, b) => (b.score || 0) - (a.score || 0) || (b.ts - a.ts))
     .slice(0, 5);
 
   // Determine primary source
