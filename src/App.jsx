@@ -322,6 +322,7 @@ export default function App() {
             <div className="sticky top-4 overflow-y-auto scrollbar-hide" style={{ maxHeight: "calc(100vh - 2rem)" }}>
               <CryptoNews livePrices={livePrices} marketData={marketData} />
               <CenterVideo />
+              <AmbientMusic />
               <GlobalMetrics />
             </div>
           </div>
@@ -329,8 +330,6 @@ export default function App() {
 
         <Footer />
       </div>
-
-      <AmbientMusic />
     </div>
   );
 }
