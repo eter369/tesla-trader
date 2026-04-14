@@ -20,6 +20,7 @@ import GlobalMetrics from "./components/GlobalMetrics";
 import BackgroundVideo from "./components/BackgroundVideo";
 import CenterVideo from "./components/CenterVideo";
 import Footer from "./components/Footer";
+import AmbientMusic from "./components/AmbientMusic";
 
 const CRYPTO_META = {
   bitcoin: { symbol: "BTC", name: "Bitcoin", color: "#f7931a", icon: "B" },
@@ -328,6 +329,8 @@ export default function App() {
 
         <Footer />
       </div>
+
+      <AmbientMusic />
     </div>
   );
 }
