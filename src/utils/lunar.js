@@ -1,20 +1,12 @@
 // ─── Lunar Phase Engine ───
 
 export function getMoonPhase(date = new Date()) {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  let c, e;
-  if (month < 3) {
-    c = year - 1;
-    e = month + 12;
-  } else {
-    c = year;
-    e = month;
-  }
-  const jd = Math.floor(365.25 * (c + 4716)) + Math.floor(30.6001 * (e + 1)) + day - 1524.5 - 2451549.5;
-  const newMoons = jd / 29.53058867;
-  return newMoons - Math.floor(newMoons);
+  // Reference: known new moon — January 29, 2025 at 12:36 UTC
+  const refNewMoon = Date.UTC(2025, 0, 29, 12, 36, 0);
+  const synodicMonth = 29.53058867; // average synodic month in days
+  const diffDays = (date.getTime() - refNewMoon) / 86400000;
+  const phase = (diffDays / synodicMonth) % 1;
+  return phase < 0 ? phase + 1 : phase;
 }
 
 export function getLunarPhaseInfo(phase) {
