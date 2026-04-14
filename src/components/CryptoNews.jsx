@@ -26,27 +26,46 @@ const COIN_KEYWORDS = {
   DOT: ["polkadot"],
 };
 
-const BULLISH_WORDS = ["surge", "rally", "soar", "bull", "gain", "record", "high", "pump", "breakout", "approval", "adopt", "launch", "partner", "milestone", "growth", "profit", "boom", "etf approved", "institutional", "sube", "alza", "récord", "all-time", "ath"];
-const BEARISH_WORDS = ["crash", "drop", "plunge", "bear", "fall", "hack", "exploit", "ban", "lawsuit", "sec charges", "fraud", "scam", "dump", "selloff", "baja", "caída", "liquidat", "bankrupt", "collapse"];
+const BULLISH_WORDS = [
+  "surge", "rally", "soar", "bull", "gain", "record", "high", "pump", "breakout", "approval",
+  "adopt", "launch", "partner", "milestone", "growth", "profit", "boom", "etf approved", "institutional",
+  "all-time", "ath",
+  // Español
+  "sube", "alza", "récord", "máximo", "alcista", "aprobación", "adopción", "ganancia", "repunte",
+  "impulso", "supera", "despega", "lanzamiento", "alianza", "crecimiento", "beneficio",
+];
+const BEARISH_WORDS = [
+  "crash", "drop", "plunge", "bear", "fall", "hack", "exploit", "ban", "lawsuit", "sec charges",
+  "fraud", "scam", "dump", "selloff", "liquidat", "bankrupt", "collapse",
+  // Español
+  "baja", "caída", "desplome", "bajista", "fraude", "estafa", "demanda", "prohibición",
+  "quiebra", "liquidación", "colapso", "pierde", "retrocede", "mínimo", "hackeo",
+];
 
 // Keywords that indicate HIGH IMPACT for crypto trading
 const HIGH_IMPACT_WORDS = [
-  // Regulation & policy
+  // Regulation & policy (EN + ES)
   "etf", "sec", "regulation", "regulat", "congress", "senate", "bill", "law", "legal", "ban",
   "stablecoin", "cbdc", "fed", "federal reserve", "treasury", "executive order", "framework",
-  // Institutional & adoption
+  "regulación", "congreso", "senado", "ley", "legisl", "prohib", "aprobación",
+  // Institutional & adoption (EN + ES)
   "institutional", "blackrock", "fidelity", "jpmorgan", "goldman", "morgan stanley", "bank",
   "custody", "wall street", "pension", "sovereign", "adoption", "mainstream",
-  // Major market events
+  "institucional", "banco", "custodia", "adopción", "inversión",
+  // Major market events (EN + ES)
   "halving", "etf approv", "etf reject", "listing", "delist", "liquidat", "billion",
   "million", "record", "all-time", "ath", "crash", "rally", "surge", "plunge",
-  // Security & hacks
+  "récord", "máximo histórico", "millones", "billones", "liquidación",
+  // Security & hacks (EN + ES)
   "hack", "exploit", "breach", "stolen", "vulnerability", "attack",
+  "hackeo", "robo", "vulnerabilidad", "ataque", "brecha",
   // Major projects
   "bitcoin", "ethereum", "solana", "merge", "upgrade", "fork", "layer 2", "l2",
-  // Macro
+  "actualización",
+  // Macro (EN + ES)
   "inflation", "interest rate", "rate cut", "recession", "tariff", "trade war",
   "china", "trump", "biden",
+  "inflación", "tasa de interés", "recesión", "aranceles", "guerra comercial",
 ];
 
 // Filter out non-crypto noise
@@ -82,19 +101,19 @@ function calcImpactScore(title) {
   return score;
 }
 
-// RSS feeds from top crypto news sources
+// RSS feeds — Spanish crypto news sources
 const RSS_FEEDS = [
-  { url: "https://cointelegraph.com/rss", source: "CoinTelegraph", priority: 1 },
-  { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", source: "CoinDesk", priority: 1 },
-  { url: "https://decrypt.co/feed", source: "Decrypt", priority: 2 },
-  { url: "https://bitcoinmagazine.com/.rss/full/", source: "Bitcoin Magazine", priority: 2 },
+  { url: "https://es.cointelegraph.com/rss", source: "CoinTelegraph ES", priority: 1 },
+  { url: "https://es.beincrypto.com/feed/", source: "BeInCrypto", priority: 1 },
+  { url: "https://www.criptonoticias.com/feed/", source: "CriptoNoticias", priority: 2 },
+  { url: "https://diariobitcoin.com/feed/", source: "Diario Bitcoin", priority: 2 },
 ];
 
 const SOURCE_COLORS = {
-  CoinTelegraph: "#1a1a2e",
-  CoinDesk: "#0a2540",
-  Decrypt: "#1e293b",
-  "Bitcoin Magazine": "#f7931a",
+  "CoinTelegraph ES": "#1a1a2e",
+  BeInCrypto: "#0a2540",
+  CriptoNoticias: "#1e293b",
+  "Diario Bitcoin": "#f7931a",
   CryptoPanic: "#3b82f6",
 };
 
