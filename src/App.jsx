@@ -89,12 +89,14 @@ export default function App() {
   const { currentTime, moonPhase, lunarInfo, illumination, nextPhaseDate, lunarCalendar } = useMoonPhase();
   const { livePrices, connected, tickDirection } = useWebSocket();
 
-  const [selectedCrypto, setSelectedCrypto] = useState(() =>
-    localStorage.getItem("lunar-selected-crypto") || "bitcoin"
-  );
-  const [timeRange, setTimeRange] = useState(() =>
-    parseInt(localStorage.getItem("lunar-time-range")) || 7
-  );
+  const [selectedCrypto, setSelectedCrypto] = useState(() => {
+    try { return localStorage.getItem("lunar-selected-crypto") || "bitcoin"; }
+    catch { return "bitcoin"; }
+  });
+  const [timeRange, setTimeRange] = useState(() => {
+    try { return parseInt(localStorage.getItem("lunar-time-range")) || 7; }
+    catch { return 7; }
+  });
   const [activeTab, setActiveTab] = useState("overview");
   const [fearGreed, setFearGreed] = useState(null);
 
@@ -123,11 +125,11 @@ export default function App() {
 
   // Persist preferences
   useEffect(() => {
-    localStorage.setItem("lunar-selected-crypto", selectedCrypto);
+    try { localStorage.setItem("lunar-selected-crypto", selectedCrypto); } catch {}
   }, [selectedCrypto]);
 
   useEffect(() => {
-    localStorage.setItem("lunar-time-range", timeRange.toString());
+    try { localStorage.setItem("lunar-time-range", timeRange.toString()); } catch {}
   }, [timeRange]);
 
   // Fetch Fear & Greed from CoinMarketCap + Alternative.me fallback (daily refresh + cache)

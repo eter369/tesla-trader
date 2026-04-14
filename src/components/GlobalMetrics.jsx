@@ -80,7 +80,8 @@ export default function GlobalMetrics() {
   const [source, setSource] = useState(null);
 
   useEffect(() => {
-    const cmcKey = localStorage.getItem("cmc-api-key");
+    let cmcKey = null;
+    try { cmcKey = localStorage.getItem("cmc-api-key"); } catch {}
 
     if (cmcKey) {
       fetchCMC(cmcKey);
@@ -90,7 +91,8 @@ export default function GlobalMetrics() {
 
     // Refresh every 2 minutes
     const interval = setInterval(() => {
-      const key = localStorage.getItem("cmc-api-key");
+      let key = null;
+      try { key = localStorage.getItem("cmc-api-key"); } catch {}
       if (key) fetchCMC(key);
       else fetchCoinGeckoFallback();
     }, 120000);

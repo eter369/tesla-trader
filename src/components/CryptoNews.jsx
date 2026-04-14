@@ -247,15 +247,22 @@ function NewsRow({ d, isTop, delay }) {
 }
 
 async function fetchRSS(feed) {
-  const res = await fetch(
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`
-  );
-  if (!res.ok) throw new Error("RSS fetch failed");
-  const xml = await res.text();
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xml, "text/xml");
-  const items = doc.querySelectorAll("item");
-  if (!items.length) throw new Error("No items");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error("RSS fetch failed");
+    const xml = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, "text/xml");
+    // Check for XML parse errors
+    if (doc.querySelector("parsererror")) throw new Error("XML parse error");
+    const items = doc.querySelectorAll("item");
+    if (!items.length) throw new Error("No items");
 
   const articles = [];
   items.forEach((item, idx) => {
@@ -282,6 +289,9 @@ async function fetchRSS(feed) {
     });
   });
   return articles;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function fetchCryptoNews() {
@@ -473,7 +483,7 @@ export default function CryptoNews({ livePrices, marketData }) {
                 <>
                   <div className="text-[8px] font-black tracking-[3px] text-amber-400/50 mb-1">TOP NOTICIAS DE LA SEMANA</div>
                   {news.top.map((d, i) => (
-                    <NewsRow key={`top-${i}`} d={d} isTop delay={i * 0.05} />
+                    <NewsRow key={d.url || `top-${i}`} d={d} isTop delay={i * 0.05} />
                   ))}
                 </>
               )}
@@ -483,7 +493,7 @@ export default function CryptoNews({ livePrices, marketData }) {
                   <div className="h-px my-2" style={{ background: "linear-gradient(90deg, transparent, #7c3aed15, transparent)" }} />
                   <div className="text-[8px] font-black tracking-[3px] text-purple-400/40 mb-1">NOTICIAS DE HOY</div>
                   {news.other.map((d, i) => (
-                    <NewsRow key={`other-${i}`} d={d} isTop={false} delay={(i + 3) * 0.05} />
+                    <NewsRow key={d.url || `other-${i}`} d={d} isTop={false} delay={(i + 3) * 0.05} />
                   ))}
                 </>
               )}

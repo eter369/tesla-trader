@@ -218,7 +218,7 @@ export default function SentimentIndex({ sentiment, lunarInfo, currentRSI, curre
         <div className="flex justify-between items-center p-2 rounded-lg bg-gray-900/30">
           <span className="text-gray-400">MACD</span>
           <span className="font-semibold" style={{ color: currentMACD.histogram > 0 ? "#10b981" : "#ef4444" }}>
-            {currentMACD.histogram > 0 ? "Alcista" : "Bajista"} ({currentMACD.histogram})
+            {currentMACD.histogram > 0 ? "Alcista" : "Bajista"} ({Number(currentMACD.histogram).toFixed(2)})
           </span>
         </div>
       </div>

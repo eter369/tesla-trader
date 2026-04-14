@@ -14,13 +14,13 @@ export function useMoonPhase() {
   const illumination = getMoonIllumination(moonPhase);
 
   const nextPhaseDate = useMemo(() => {
-    const d = new Date();
     for (let i = 1; i <= 30; i++) {
-      d.setDate(d.getDate() + 1);
+      const d = new Date();
+      d.setDate(d.getDate() + i);
       const p = getMoonPhase(d);
       const info = getLunarPhaseInfo(p);
       if (info.name !== lunarInfo.name) {
-        return { date: new Date(d), phase: info };
+        return { date: d, phase: info };
       }
     }
     return null;

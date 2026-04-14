@@ -17,71 +17,84 @@ export function useWebSocket() {
   const prevPricesRef = useRef({});
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN ||
+        wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
-    const streams = Object.values(SYMBOL_MAP).map(s => `${s}@ticker`).join("/");
-    const ws = new WebSocket(`${BINANCE_WS}/${streams}`);
+    // Clear any pending reconnect
+    if (reconnectRef.current) {
+      clearTimeout(reconnectRef.current);
+      reconnectRef.current = null;
+    }
 
-    ws.onopen = () => {
-      setConnected(true);
-      if (reconnectRef.current) {
-        clearTimeout(reconnectRef.current);
-        reconnectRef.current = null;
-      }
-    };
+    try {
+      const streams = Object.values(SYMBOL_MAP).map(s => `${s}@ticker`).join("/");
+      const ws = new WebSocket(`${BINANCE_WS}/${streams}`);
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.e === "24hrTicker") {
-          const symbol = data.s.toLowerCase();
-          const cryptoId = Object.entries(SYMBOL_MAP).find(([, v]) => v === symbol)?.[0];
-          if (!cryptoId) return;
+      ws.onopen = () => {
+        setConnected(true);
+      };
 
-          const price = parseFloat(data.c);
-          const prevPrice = prevPricesRef.current[cryptoId];
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.e === "24hrTicker") {
+            const symbol = data.s.toLowerCase();
+            const cryptoId = Object.entries(SYMBOL_MAP).find(([, v]) => v === symbol)?.[0];
+            if (!cryptoId) return;
 
-          if (prevPrice && prevPrice !== price) {
-            setTickDirection(prev => ({
-              ...prev,
-              [cryptoId]: price > prevPrice ? "up" : "down"
-            }));
-            setTimeout(() => {
-              setTickDirection(prev => ({ ...prev, [cryptoId]: null }));
-            }, 600);
-          }
+            const price = parseFloat(data.c);
+            const prevPrice = prevPricesRef.current[cryptoId];
 
-          prevPricesRef.current[cryptoId] = price;
-
-          setLivePrices(prev => ({
-            ...prev,
-            [cryptoId]: {
-              price,
-              change24h: parseFloat(data.P),
-              high24h: parseFloat(data.h),
-              low24h: parseFloat(data.l),
-              volume: parseFloat(data.v) * price,
-              quoteVolume: parseFloat(data.q),
-              trades: parseInt(data.n),
-              lastUpdate: Date.now(),
+            if (prevPrice && prevPrice !== price) {
+              setTickDirection(prev => ({
+                ...prev,
+                [cryptoId]: price > prevPrice ? "up" : "down"
+              }));
+              setTimeout(() => {
+                setTickDirection(prev => ({ ...prev, [cryptoId]: null }));
+              }, 600);
             }
-          }));
+
+            prevPricesRef.current[cryptoId] = price;
+
+            setLivePrices(prev => ({
+              ...prev,
+              [cryptoId]: {
+                price,
+                change24h: parseFloat(data.P),
+                high24h: parseFloat(data.h),
+                low24h: parseFloat(data.l),
+                volume: parseFloat(data.v) * price,
+                quoteVolume: parseFloat(data.q),
+                trades: parseInt(data.n),
+                lastUpdate: Date.now(),
+              }
+            }));
+          }
+        } catch {
+          // ignore parse errors
         }
-      } catch (e) {
-        // ignore parse errors
-      }
-    };
+      };
 
-    ws.onclose = () => {
-      setConnected(false);
-      reconnectRef.current = setTimeout(connect, 3000);
-    };
+      ws.onclose = () => {
+        setConnected(false);
+        wsRef.current = null;
+        // Reconnect after delay (prevents rapid reconnection loops)
+        if (!reconnectRef.current) {
+          reconnectRef.current = setTimeout(connect, 3000);
+        }
+      };
 
-    ws.onerror = () => {
-      ws.close();
-    };
+      ws.onerror = () => {
+        // onclose will fire after this — let onclose handle reconnection
+        try { ws.close(); } catch {}
+      };
 
-    wsRef.current = ws;
+      wsRef.current = ws;
+    } catch {
+      // WebSocket constructor failed — retry
+      reconnectRef.current = setTimeout(connect, 5000);
+    }
   }, []);
 
   useEffect(() => {
