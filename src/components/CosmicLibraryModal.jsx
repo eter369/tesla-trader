@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
+const DEFAULT_VIDEO = `${import.meta.env.BASE_URL || "/"}transmision-principal.mp4`.replace("//", "/");
+
 const STYLES = `
 .cl-root{
   --cl-ink:#e9d5ff;
@@ -276,17 +278,22 @@ function embedUrl(url) {
 export default function CosmicLibraryModal({ open, onClose }) {
   const cardRef = useRef(null);
   const [media, setMedia] = useState(null); // {type,src}
+  const [showUrlPicker, setShowUrlPicker] = useState(false);
 
-  // Lock body scroll while open
+  // Lock body scroll while open + auto-load default video
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Preload the default transmission on open
+    setMedia({ type: "video", src: DEFAULT_VIDEO });
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  // Reset media when modal closes
-  useEffect(() => { if (!open) setMedia(null); }, [open]);
+  // Reset media + picker when modal closes
+  useEffect(() => {
+    if (!open) { setMedia(null); setShowUrlPicker(false); }
+  }, [open]);
 
   // Escape to close
   useEffect(() => {
@@ -390,7 +397,13 @@ export default function CosmicLibraryModal({ open, onClose }) {
               />
             )}
             {media?.type === "video" && (
-              <video src={media.src} controls autoPlay />
+              <video
+                src={media.src}
+                controls
+                autoPlay
+                playsInline
+                preload="auto"
+              />
             )}
 
             <div className="cl-sigil" aria-hidden="true">☽ Biblioteca Cósmica</div>
