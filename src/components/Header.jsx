@@ -51,11 +51,6 @@ function MiniHlsOrb() {
 export default function Header({ currentTime, connected, error, onRefresh }) {
   return (
     <header className="text-center mb-6 relative">
-      {/* Mystic Portal — left of title, hidden on smaller screens */}
-      <div className="hidden lg:block absolute left-0 top-0 z-20">
-        <MysticPortal />
-      </div>
-
       <div className="absolute top-0 right-0 flex items-center gap-2">
         <button onClick={onRefresh} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors" title="Actualizar datos">
           <RefreshCw size={14} className="text-gray-400" />
@@ -67,7 +62,7 @@ export default function Header({ currentTime, connected, error, onRefresh }) {
       </div>
 
       <div className="flex items-center justify-center gap-3 mb-2">
-        <MiniHlsOrb key="left" />
+        <MysticPortal compact displaySize={36} />
         <h1 className="text-3xl md:text-4xl font-black tracking-tight gold-text">
           CRYPTO LUNAR ORACLE
         </h1>
