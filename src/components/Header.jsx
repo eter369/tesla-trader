@@ -1,7 +1,8 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { Moon, Clock, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import Hls from "hls.js";
 import MysticPortal from "./MysticPortal";
+import CosmicLibraryModal from "./CosmicLibraryModal";
 
 function MiniHlsOrb() {
   const videoRef = useRef(null);
@@ -49,6 +50,10 @@ function MiniHlsOrb() {
 }
 
 export default function Header({ currentTime, connected, error, onRefresh }) {
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const openLibrary = useCallback(() => setLibraryOpen(true), []);
+  const closeLibrary = useCallback(() => setLibraryOpen(false), []);
+
   return (
     <header className="text-center mb-6 relative">
       {/* Portal Místico — izquierda, orbe completo visible debajo de la franja del título
@@ -98,10 +103,12 @@ export default function Header({ currentTime, connected, error, onRefresh }) {
 
           {/* El orbe */}
           <div className="absolute inset-0" style={{ zIndex: 2, animation: "portalGlowPulse 4s ease-in-out infinite" }}>
-            <MysticPortal compact displaySize={110} />
+            <MysticPortal compact displaySize={110} onEnter={openLibrary} />
           </div>
         </div>
       </div>
+
+      <CosmicLibraryModal open={libraryOpen} onClose={closeLibrary} />
 
       <div className="absolute top-0 right-0 flex items-center gap-2">
         <button onClick={onRefresh} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors" title="Actualizar datos">
