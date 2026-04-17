@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import SecretLibraryPanel from "./SecretLibraryPanel";
 
 const DEFAULT_VIDEO = `${import.meta.env.BASE_URL || "/"}transmision-principal.mp4`.replace("//", "/");
 
@@ -51,8 +52,17 @@ const STYLES = `
 
 .cl-stage{
   position:relative;z-index:1;
-  width:100%;max-width:1120px;
+  width:100%;max-width:1560px;
   display:flex;flex-direction:column;align-items:center;
+}
+
+.cl-row{
+  width:100%;
+  display:flex;flex-direction:row;align-items:stretch;
+  gap:24px;
+}
+@media (max-width:1024px){
+  .cl-row{flex-direction:column;align-items:center;gap:18px}
 }
 
 .cl-close{
@@ -86,7 +96,7 @@ const STYLES = `
 @keyframes clRevealUp{to{opacity:1;transform:translateY(0)}}
 
 .cl-card{
-  position:relative;width:100%;aspect-ratio:16/9;
+  position:relative;flex:1 1 auto;min-width:0;width:100%;aspect-ratio:16/9;
   border-radius:28px;overflow:hidden;
   opacity:0;transform:translateY(24px) scale(0.985);
   animation:clRevealCard 1.4s cubic-bezier(0.16,1,0.3,1) 0.25s forwards;
@@ -360,53 +370,57 @@ export default function CosmicLibraryModal({ open, onClose }) {
             <span className="line" />
           </div>
 
-          <div ref={cardRef} className={`cl-card${media ? " cl-playing" : ""}`}>
-            <div className="cl-halo" aria-hidden="true" />
-            <div className="cl-inner" aria-hidden="true" />
-            <div className="cl-grain" aria-hidden="true" />
+          <div className="cl-row">
+            <div ref={cardRef} className={`cl-card${media ? " cl-playing" : ""}`}>
+              <div className="cl-halo" aria-hidden="true" />
+              <div className="cl-inner" aria-hidden="true" />
+              <div className="cl-grain" aria-hidden="true" />
 
-            <div className="cl-chrome" aria-hidden="true">
-              <span className="live" />
-              <span>CH · 01</span>
-            </div>
-            <div className="cl-chrome-right" aria-hidden="true">
-              <span>16:9</span>
-              <span className="dots"><span /><span /><span /></span>
-            </div>
+              <div className="cl-chrome" aria-hidden="true">
+                <span className="live" />
+                <span>CH · 01</span>
+              </div>
+              <div className="cl-chrome-right" aria-hidden="true">
+                <span>16:9</span>
+                <span className="dots"><span /><span /><span /></span>
+              </div>
 
-            {!media && (
-              <button className="cl-ui" onClick={handlePlayClick} aria-label="Reproducir transmisión principal">
-                <span className="cl-play" aria-hidden="true"><span className="tri" /></span>
-                <span className="cl-caption">
-                  <span className="title">Insertar URL del Video</span>
-                  <span className="meta">
-                    <span>YouTube</span><span className="dot" />
-                    <span>Vimeo</span><span className="dot" />
-                    <span>MP4</span>
+              {!media && (
+                <button className="cl-ui" onClick={handlePlayClick} aria-label="Reproducir transmisión principal">
+                  <span className="cl-play" aria-hidden="true"><span className="tri" /></span>
+                  <span className="cl-caption">
+                    <span className="title">Insertar URL del Video</span>
+                    <span className="meta">
+                      <span>YouTube</span><span className="dot" />
+                      <span>Vimeo</span><span className="dot" />
+                      <span>MP4</span>
+                    </span>
                   </span>
-                </span>
-              </button>
-            )}
+                </button>
+              )}
 
-            {media?.type === "iframe" && (
-              <iframe
-                src={media.src}
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                title="Transmisión principal"
-              />
-            )}
-            {media?.type === "video" && (
-              <video
-                src={media.src}
-                controls
-                autoPlay
-                playsInline
-                preload="auto"
-              />
-            )}
+              {media?.type === "iframe" && (
+                <iframe
+                  src={media.src}
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                  title="Transmisión principal"
+                />
+              )}
+              {media?.type === "video" && (
+                <video
+                  src={media.src}
+                  controls
+                  autoPlay
+                  playsInline
+                  preload="auto"
+                />
+              )}
 
-            <div className="cl-sigil" aria-hidden="true">☽ Biblioteca Cósmica</div>
+              <div className="cl-sigil" aria-hidden="true">☽ Biblioteca Cósmica</div>
+            </div>
+
+            <SecretLibraryPanel admin />
           </div>
         </div>
       </div>
