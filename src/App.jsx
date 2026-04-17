@@ -21,6 +21,7 @@ import BackgroundVideo from "./components/BackgroundVideo";
 import CenterVideo from "./components/CenterVideo";
 import Footer from "./components/Footer";
 import AmbientMusic from "./components/AmbientMusic";
+import MysticPortal from "./components/MysticPortal";
 
 const CRYPTO_META = {
   bitcoin: { symbol: "BTC", name: "Bitcoin", color: "#f7931a", icon: "B" },
@@ -239,6 +240,11 @@ export default function App() {
 
 
       <div className="relative z-10 w-full max-w-[1800px] mx-auto px-3 sm:px-4 py-4">
+        {/* Portal Místico — esquina superior izquierda del contenedor */}
+        <div className="hidden md:block absolute top-4 left-4 z-20">
+          <MysticPortal compact displaySize={110} />
+        </div>
+
         <Header
           currentTime={currentTime}
           connected={connected}

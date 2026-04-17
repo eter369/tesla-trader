@@ -1,20 +1,10 @@
 import AnimatedMoon from "./AnimatedMoon";
-import MysticPortal from "./MysticPortal";
 
 export default function MoonPhaseCard({ moonPhase, lunarInfo, nextPhaseDate }) {
   return (
-    <div className="card rounded-2xl pt-14 px-6 pb-6 flex flex-col items-center animate-pulse-glow">
-      {/* Portal Místico — orbe superpuesto sobre la luna */}
-      <div className="relative" style={{ width: 170, height: 170 }}>
-        <div className="absolute inset-0 animate-float">
-          <AnimatedMoon phase={moonPhase} size={170} />
-        </div>
-        <div
-          className="absolute left-1/2 -translate-x-1/2 z-10 pointer-events-auto"
-          style={{ top: -36 }}
-        >
-          <MysticPortal compact displaySize={110} />
-        </div>
+    <div className="card rounded-2xl p-6 flex flex-col items-center animate-pulse-glow">
+      <div className="animate-float">
+        <AnimatedMoon phase={moonPhase} size={170} />
       </div>
 
       <h2 className="text-2xl font-black mt-4 gold-text tracking-tight">{lunarInfo.name}</h2>
