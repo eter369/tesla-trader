@@ -99,7 +99,7 @@ function buildNoise(seed){
   };
 }
 
-export default function MysticPortal({ onEnter }) {
+export default function MysticPortal({ onEnter, displaySize = 240, compact = false }) {
   const bgRef = useRef(null);
   const fxRef = useRef(null);
   const cardRef = useRef(null);
@@ -131,8 +131,8 @@ export default function MysticPortal({ onEnter }) {
     function sizeCanvas(c, ctx){
       c.width  = LOGICAL * DPR;
       c.height = LOGICAL * DPR;
-      c.style.width  = LOGICAL + "px";
-      c.style.height = LOGICAL + "px";
+      c.style.width  = displaySize + "px";
+      c.style.height = displaySize + "px";
       ctx.setTransform(DPR,0,0,DPR,0,0);
     }
     sizeCanvas(bgC, bg);
@@ -542,7 +542,7 @@ export default function MysticPortal({ onEnter }) {
   };
   const handleMouseMove = (e) => {
     const r = fxRef.current?.getBoundingClientRect();
-    if (!r) return;
+    if (!r || !r.width || !r.height) return;
     stateRef.current.mx = (e.clientX - r.left) * (CONFIG.size / r.width);
     stateRef.current.my = (e.clientY - r.top)  * (CONFIG.size / r.height);
   };
@@ -552,6 +552,36 @@ export default function MysticPortal({ onEnter }) {
       handleActivate();
     }
   };
+
+  if (compact) {
+    return (
+      <div
+        ref={cardRef}
+        role="button"
+        tabIndex={0}
+        aria-label="Entrar a la biblioteca cósmica"
+        onClick={handleActivate}
+        onKeyDown={handleKeyDown}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onMouseMove={handleMouseMove}
+        title="Portal Místico"
+        className="relative cursor-pointer select-none outline-none rounded-full overflow-hidden"
+        style={{
+          width: displaySize,
+          height: displaySize,
+          boxShadow: "0 0 18px rgba(168,85,247,.45), inset 0 0 0 1px rgba(168,85,247,.3)",
+        }}
+      >
+        <canvas ref={bgRef} className="absolute inset-0 block" />
+        <canvas ref={fxRef} className="absolute inset-0 block" />
+        <div
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{ boxShadow: "inset 0 0 14px 6px rgba(5,5,16,0.7)" }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -577,7 +607,7 @@ export default function MysticPortal({ onEnter }) {
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f5a623", boxShadow: "0 0 10px #f5a623" }} />
         Portal Místico
       </div>
-      <div className="relative" style={{ width: CONFIG.size, height: CONFIG.size }}>
+      <div className="relative" style={{ width: displaySize, height: displaySize }}>
         <canvas ref={bgRef} className="absolute inset-0 block" />
         <canvas ref={fxRef} className="absolute inset-0 block" />
       </div>

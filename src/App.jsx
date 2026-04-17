@@ -238,9 +238,9 @@ export default function App() {
       <BackgroundVideo />
       <Starfield />
 
-      {/* Portal Místico — fijo arriba a la izquierda (oculto en pantallas pequeñas) */}
-      <div className="hidden 2xl:block fixed top-4 left-4 z-30">
-        <MysticPortal />
+      {/* Portal Místico — orbe circular fijo arriba a la izquierda */}
+      <div className="fixed top-3 left-3 z-30">
+        <MysticPortal compact displaySize={90} />
       </div>
 
       <div className="relative z-10 w-full max-w-[1800px] mx-auto px-3 sm:px-4 py-4">
