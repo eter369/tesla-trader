@@ -51,9 +51,56 @@ function MiniHlsOrb() {
 export default function Header({ currentTime, connected, error, onRefresh }) {
   return (
     <header className="text-center mb-6 relative">
-      {/* Portal Místico — izquierda, bajado ligeramente para equilibrio visual */}
-      <div className="hidden md:block absolute left-2 top-[62%] -translate-y-1/2 z-20">
-        <MysticPortal compact displaySize={100} />
+      {/* Portal Místico — izquierda, orbe completo visible debajo de la franja del título
+          con destello (halo radial + rayos giratorios) emanando detrás */}
+      <div
+        className="hidden md:block absolute left-4 pointer-events-none"
+        style={{ top: "100%", transform: "translateY(-30%)", zIndex: 20 }}
+      >
+        <div className="relative pointer-events-auto" style={{ width: 110, height: 110 }}>
+          {/* Rayos de luz giratorios (detrás, detrás de todo) */}
+          <div
+            className="absolute top-1/2 left-1/2"
+            style={{
+              width: 220,
+              height: 220,
+              background:
+                "conic-gradient(from 0deg, transparent 0deg, rgba(139,92,246,0.35) 12deg, transparent 30deg, transparent 90deg, rgba(34,211,238,0.28) 102deg, transparent 120deg, transparent 180deg, rgba(245,166,35,0.25) 192deg, transparent 210deg, transparent 270deg, rgba(192,132,252,0.3) 282deg, transparent 300deg, transparent 360deg)",
+              WebkitMaskImage:
+                "radial-gradient(circle, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0) 75%)",
+              maskImage:
+                "radial-gradient(circle, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0) 75%)",
+              filter: "blur(2px)",
+              animation: "portalRaysSpin 18s linear infinite",
+              transformOrigin: "center",
+              transform: "translate(-50%, -50%)",
+              zIndex: 0,
+              mixBlendMode: "screen",
+            }}
+          />
+
+          {/* Halo radial púrpura pulsando */}
+          <div
+            className="absolute top-1/2 left-1/2"
+            style={{
+              width: 190,
+              height: 190,
+              background:
+                "radial-gradient(circle, rgba(139,92,246,0.55) 0%, rgba(139,92,246,0.25) 30%, rgba(139,92,246,0) 65%)",
+              animation: "portalBackHalo 3.5s ease-in-out infinite",
+              transformOrigin: "center",
+              transform: "translate(-50%, -50%)",
+              zIndex: 1,
+              mixBlendMode: "screen",
+              filter: "blur(4px)",
+            }}
+          />
+
+          {/* El orbe */}
+          <div className="absolute inset-0" style={{ zIndex: 2, animation: "portalGlowPulse 4s ease-in-out infinite" }}>
+            <MysticPortal compact displaySize={110} />
+          </div>
+        </div>
       </div>
 
       <div className="absolute top-0 right-0 flex items-center gap-2">
