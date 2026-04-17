@@ -51,8 +51,8 @@ function MiniHlsOrb() {
 export default function Header({ currentTime, connected, error, onRefresh }) {
   return (
     <header className="text-center mb-6 relative">
-      {/* Portal Místico — anclado a la izquierda, centrado verticalmente contra el título */}
-      <div className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 z-20">
+      {/* Portal Místico — izquierda, bajado ligeramente para equilibrio visual */}
+      <div className="hidden md:block absolute left-2 top-[62%] -translate-y-1/2 z-20">
         <MysticPortal compact displaySize={100} />
       </div>
 
