@@ -238,8 +238,8 @@ export default function App() {
       <BackgroundVideo />
       <Starfield />
 
-      {/* Portal Místico — orbe circular fijo arriba a la izquierda */}
-      <div className="fixed top-3 left-3 z-30">
+      {/* Portal Místico — orbe circular fijo arriba al centro */}
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-30">
         <MysticPortal compact displaySize={90} />
       </div>
 
