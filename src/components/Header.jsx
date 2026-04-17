@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { Moon, Clock, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import Hls from "hls.js";
+import MysticPortal from "./MysticPortal";
 
 function MiniHlsOrb() {
   const videoRef = useRef(null);
@@ -50,6 +51,11 @@ function MiniHlsOrb() {
 export default function Header({ currentTime, connected, error, onRefresh }) {
   return (
     <header className="text-center mb-6 relative">
+      {/* Portal Místico — anclado a la izquierda, centrado verticalmente contra el título */}
+      <div className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 z-20">
+        <MysticPortal compact displaySize={100} />
+      </div>
+
       <div className="absolute top-0 right-0 flex items-center gap-2">
         <button onClick={onRefresh} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors" title="Actualizar datos">
           <RefreshCw size={14} className="text-gray-400" />
