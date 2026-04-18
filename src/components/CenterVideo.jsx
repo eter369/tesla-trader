@@ -31,39 +31,56 @@ export default function CenterVideo() {
         transition: "opacity 0.8s ease",
       }}
     >
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="w-full block rounded-2xl"
-        style={{ aspectRatio: "16 / 9", objectFit: "cover" }}
-      >
-        <source
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260324_024928_1efd0b0d-6c02-45a8-8847-1030900c4f63.mp4"
-          type="video/mp4"
-        />
-      </video>
+      {/* Header strip (visible always on mobile, subtle on desktop) */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" style={{ boxShadow: "0 0 8px rgba(251,191,36,0.7)" }} />
+          <span className="text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber-400/80 font-semibold">
+            Visión Cósmica
+          </span>
+        </div>
+        <span className="text-[9px] tracking-[0.16em] uppercase text-gray-500">16:9</span>
+      </div>
 
-      {/* Mute toggle on hover */}
-      <button
-        onClick={toggleMute}
-        className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
-        style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)" }}
-      >
-        {muted ? (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-          </svg>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-          </svg>
-        )}
-      </button>
+      <div className="relative">
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full block"
+          style={{ aspectRatio: "16 / 9", objectFit: "cover" }}
+        >
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260324_024928_1efd0b0d-6c02-45a8-8847-1030900c4f63.mp4"
+            type="video/mp4"
+          />
+        </video>
+
+        {/* Mute toggle — always visible on touch / mobile, hover-fade on desktop */}
+        <button
+          onClick={toggleMute}
+          className="absolute top-3 right-3 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center z-10 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 active:scale-95"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.12)" }}
+          aria-label={muted ? "Activar sonido" : "Silenciar"}
+        >
+          {muted ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          )}
+        </button>
+
+        {/* Bottom gradient for legibility */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(5,5,16,0.55), transparent)" }} />
+      </div>
     </div>
   );
 }

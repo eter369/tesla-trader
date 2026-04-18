@@ -313,6 +313,12 @@ export default function App() {
               <GlobalMetrics />
             </div>
 
+            {/* Mobile-only: Visión Cósmica + Música Ambiental (sidebar items, surfaced for mobile) */}
+            <div className="xl:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <CenterVideo />
+              <AmbientMusic />
+            </div>
+
             {/* Lunar Calendar 2026 */}
             <LunarCalendar2026 />
 

@@ -67,68 +67,108 @@ export default function AmbientMusic() {
           transition: "opacity 0.8s ease",
         }}
       >
-        <div
-          className="h-px"
-          style={{ background: "linear-gradient(90deg, transparent, #a855f740, #6366f130, transparent)" }}
-        />
-        <video
-          ref={videoRef}
-          loop
-          playsInline
-          preload="auto"
-          className="w-full block rounded-2xl"
-          style={{ aspectRatio: "16 / 9", objectFit: "cover" }}
-        >
-          <source src="/ambient-music.mp4" type="video/mp4" />
-        </video>
+        {/* Header strip */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <div className="flex items-end gap-[2px] h-3">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-[2px] rounded-full"
+                  style={{
+                    background: playing && !muted ? "linear-gradient(to top, #a855f7, #6366f1)" : "#4b5563",
+                    height: playing && !muted ? `${6 + i * 2}px` : "3px",
+                    animation: playing && !muted ? `musicBar 0.${4 + i}s ease-in-out infinite alternate` : "none",
+                  }}
+                />
+              ))}
+            </div>
+            <span className="text-[10px] sm:text-[11px] tracking-[0.18em] uppercase font-semibold"
+                  style={{ color: playing && !muted ? "#c4b5fd" : "rgba(168,85,247,0.7)" }}>
+              Música Ambiental
+            </span>
+          </div>
+          <span className="text-[9px] tracking-[0.16em] uppercase text-gray-500">
+            {playing ? (muted ? "MUTED" : "PLAYING") : "PAUSED"}
+          </span>
+        </div>
 
-        {/* Overlay controls on hover */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button
-            onClick={togglePlay}
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)" }}
+        <div className="relative">
+          <div
+            className="h-px"
+            style={{ background: "linear-gradient(90deg, transparent, #a855f740, #6366f130, transparent)" }}
+          />
+          <video
+            ref={videoRef}
+            loop
+            playsInline
+            preload="auto"
+            className="w-full block"
+            style={{ aspectRatio: "16 / 9", objectFit: "cover" }}
           >
-            {playing ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                <rect x="6" y="4" width="4" height="16" rx="1" />
-                <rect x="14" y="4" width="4" height="16" rx="1" />
+            <source src="/ambient-music.mp4" type="video/mp4" />
+          </video>
+
+          {/* Center play overlay — always visible on mobile, hover on desktop */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <button
+              onClick={togglePlay}
+              className="w-14 h-14 sm:w-12 sm:h-12 rounded-full flex items-center justify-center pointer-events-auto active:scale-95 transition-transform"
+              style={{
+                background: "rgba(10,5,30,0.55)",
+                backdropFilter: "blur(14px)",
+                border: "1px solid rgba(192,132,252,0.35)",
+                boxShadow: "0 6px 24px rgba(168,85,247,0.35)",
+              }}
+              aria-label={playing ? "Pausar" : "Reproducir"}
+            >
+              {playing ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="white" style={{ marginLeft: 2 }}>
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              )}
+            </button>
+          </div>
+
+          {/* Mute toggle — always visible on mobile */}
+          <button
+            onClick={toggleMute}
+            className="absolute top-3 right-3 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 z-10 active:scale-95"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.12)" }}
+            aria-label={muted ? "Activar sonido" : "Silenciar"}
+          >
+            {muted ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
               </svg>
             ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                <polygon points="5 3 19 12 5 21 5 3" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
               </svg>
             )}
           </button>
-        </div>
 
-        {/* Mute toggle top-right on hover */}
-        <button
-          onClick={toggleMute}
-          className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
-          style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)" }}
-        >
-          {muted ? (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-            </svg>
-          ) : (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-            </svg>
-          )}
-        </button>
+          {/* Bottom gradient for legibility */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(5,5,16,0.55), transparent)" }} />
+        </div>
       </div>
 
-      {/* Floating mini control — bottom right (always visible) */}
+      {/* Floating mini control — bottom (right on desktop, centered on mobile) */}
       <div
-        className="fixed bottom-5 right-5 z-50 flex items-center gap-1.5 rounded-full px-3 py-2 shadow-lg backdrop-blur-md transition-all duration-300"
+        className="fixed z-50 flex items-center gap-1.5 rounded-full px-3 py-2 shadow-lg backdrop-blur-md transition-all duration-300
+                   bottom-4 right-4 sm:bottom-5 sm:right-5
+                   max-sm:left-1/2 max-sm:right-auto max-sm:-translate-x-1/2"
         style={{
-          background: "rgba(10, 10, 25, 0.75)",
+          background: "rgba(10, 10, 25, 0.78)",
           border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: playing && !muted ? "0 0 20px rgba(168,85,247,0.15)" : "0 4px 12px rgba(0,0,0,0.4)",
+          boxShadow: playing && !muted ? "0 0 20px rgba(168,85,247,0.18), 0 4px 16px rgba(0,0,0,0.5)" : "0 4px 12px rgba(0,0,0,0.5)",
         }}
       >
         {/* Visualizer bars */}
@@ -150,16 +190,17 @@ export default function AmbientMusic() {
 
         <button
           onClick={togglePlay}
-          className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+          className="w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
           title={playing ? "Pausar" : "Reproducir"}
+          aria-label={playing ? "Pausar" : "Reproducir"}
         >
           {playing ? (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
               <rect x="6" y="4" width="4" height="16" rx="1" />
               <rect x="14" y="4" width="4" height="16" rx="1" />
             </svg>
           ) : (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
               <polygon points="5 3 19 12 5 21 5 3" />
             </svg>
           )}
@@ -167,16 +208,17 @@ export default function AmbientMusic() {
 
         <button
           onClick={toggleMute}
-          className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+          className="w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
           title={muted ? "Activar sonido" : "Silenciar"}
+          aria-label={muted ? "Activar sonido" : "Silenciar"}
         >
           {muted ? (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
               <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
             </svg>
           ) : (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
               <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
             </svg>
