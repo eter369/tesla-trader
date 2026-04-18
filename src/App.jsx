@@ -28,6 +28,22 @@ const CRYPTO_META = {
   solana: { symbol: "SOL", name: "Solana", color: "#9945ff", icon: "S" },
 };
 
+// JS-detected breakpoint so AmbientMusic / CenterVideo render in exactly one
+// place (mobile or desktop sidebar) — prevents duplicate <video> instances
+// where pausing one wouldn't stop the other.
+function useIsXl() {
+  const [isXl, setIsXl] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const handler = (e) => setIsXl(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isXl;
+}
+
 // Starfield background
 function Starfield() {
   const stars = useMemo(() =>
@@ -99,6 +115,7 @@ export default function App() {
   });
   const [activeTab, setActiveTab] = useState("overview");
   const [fearGreed, setFearGreed] = useState(null);
+  const isXl = useIsXl();
 
   const { marketData, priceHistory, loading, error, refetch } = useCryptoData(timeRange);
 
@@ -313,11 +330,14 @@ export default function App() {
               <GlobalMetrics />
             </div>
 
-            {/* Mobile-only: Visión Cósmica + Música Ambiental (sidebar items, surfaced for mobile) */}
-            <div className="xl:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <CenterVideo />
-              <AmbientMusic />
-            </div>
+            {/* Mobile-only: Visión Cósmica + Música Ambiental (sidebar items, surfaced for mobile).
+                Rendered conditionally via JS so only ONE instance of each <video> exists in the DOM. */}
+            {!isXl && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <CenterVideo />
+                <AmbientMusic />
+              </div>
+            )}
 
             {/* Lunar Calendar 2026 */}
             <LunarCalendar2026 />
@@ -327,14 +347,16 @@ export default function App() {
           </div>
 
           {/* ─── Right: News Sidebar ─── */}
-          <div className="hidden xl:block">
-            <div className="sticky top-4 overflow-y-auto scrollbar-hide" style={{ maxHeight: "calc(100vh - 2rem)" }}>
-              <CryptoNews livePrices={livePrices} marketData={marketData} />
-              <CenterVideo />
-              <AmbientMusic />
-              <GlobalMetrics />
+          {isXl && (
+            <div>
+              <div className="sticky top-4 overflow-y-auto scrollbar-hide" style={{ maxHeight: "calc(100vh - 2rem)" }}>
+                <CryptoNews livePrices={livePrices} marketData={marketData} />
+                <CenterVideo />
+                <AmbientMusic />
+                <GlobalMetrics />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <Footer />
