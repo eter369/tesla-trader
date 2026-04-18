@@ -31,17 +31,6 @@ export default function CenterVideo() {
         transition: "opacity 0.8s ease",
       }}
     >
-      {/* Header strip (visible always on mobile, subtle on desktop) */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" style={{ boxShadow: "0 0 8px rgba(251,191,36,0.7)" }} />
-          <span className="text-[10px] sm:text-[11px] tracking-[0.18em] uppercase text-amber-400/80 font-semibold">
-            Visión Cósmica
-          </span>
-        </div>
-        <span className="text-[9px] tracking-[0.16em] uppercase text-gray-500">16:9</span>
-      </div>
-
       <div className="relative">
         <video
           ref={videoRef}

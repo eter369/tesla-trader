@@ -46,37 +46,7 @@ export default function AmbientMusic() {
           transition: "opacity 0.8s ease",
         }}
       >
-        {/* Header strip */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <div className="flex items-end gap-[2px] h-3">
-              {[0, 1, 2].map(i => (
-                <div
-                  key={i}
-                  className="w-[2px] rounded-full"
-                  style={{
-                    background: playing && !muted ? "linear-gradient(to top, #a855f7, #6366f1)" : "#4b5563",
-                    height: playing && !muted ? `${6 + i * 2}px` : "3px",
-                    animation: playing && !muted ? `musicBar 0.${4 + i}s ease-in-out infinite alternate` : "none",
-                  }}
-                />
-              ))}
-            </div>
-            <span className="text-[10px] sm:text-[11px] tracking-[0.18em] uppercase font-semibold"
-                  style={{ color: playing && !muted ? "#c4b5fd" : "rgba(168,85,247,0.7)" }}>
-              Música Ambiental
-            </span>
-          </div>
-          <span className="text-[9px] tracking-[0.16em] uppercase text-gray-500">
-            {playing ? (muted ? "MUTED" : "PLAYING") : "PAUSED"}
-          </span>
-        </div>
-
         <div className="relative">
-          <div
-            className="h-px"
-            style={{ background: "linear-gradient(90deg, transparent, #a855f740, #6366f130, transparent)" }}
-          />
           <video
             ref={videoRef}
             loop
