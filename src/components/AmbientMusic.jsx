@@ -6,7 +6,6 @@ export default function AmbientMusic() {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [visible, setVisible] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
 
   // Fade in on scroll
   useEffect(() => {
@@ -18,27 +17,7 @@ export default function AmbientMusic() {
     return () => observer.disconnect();
   }, []);
 
-  // Autoplay on first user interaction (browsers block autoplay with sound)
-  useEffect(() => {
-    function handleInteraction() {
-      if (!hasInteracted && videoRef.current) {
-        videoRef.current.play().then(() => {
-          setPlaying(true);
-          setHasInteracted(true);
-        }).catch(() => {});
-      }
-    }
-
-    document.addEventListener("click", handleInteraction, { once: true });
-    document.addEventListener("touchstart", handleInteraction, { once: true });
-    document.addEventListener("keydown", handleInteraction, { once: true });
-
-    return () => {
-      document.removeEventListener("click", handleInteraction);
-      document.removeEventListener("touchstart", handleInteraction);
-      document.removeEventListener("keydown", handleInteraction);
-    };
-  }, [hasInteracted]);
+  // Music only plays when user presses Play — no global auto-play on interaction
 
   const togglePlay = () => {
     if (!videoRef.current) return;
