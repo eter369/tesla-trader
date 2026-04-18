@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import BibliothecaHermetica from "./BibliothecaHermetica";
 
 const DEFAULT_VIDEO = `${import.meta.env.BASE_URL || "/"}transmision-principal.mp4`.replace("//", "/");
 
@@ -51,8 +52,32 @@ const STYLES = `
 
 .cl-stage{
   position:relative;z-index:1;
-  width:100%;max-width:1120px;
+  width:100%;max-width:1280px;
   display:flex;flex-direction:column;align-items:center;
+  gap:48px;
+}
+
+.cl-divider-ornament{
+  display:flex;align-items:center;justify-content:center;gap:24px;
+  width:100%;
+  opacity:0;transform:translateY(8px);
+  animation:clRevealUp 1.1s cubic-bezier(0.16,1,0.3,1) 0.4s forwards;
+}
+.cl-divider-ornament .line{
+  flex:1;max-width:240px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(216,180,254,0.3) 50%,transparent);
+}
+.cl-divider-ornament .label{
+  font-family:"Cinzel",serif;
+  font-size:11px;font-weight:500;letter-spacing:0.42em;
+  color:var(--cl-ink);text-transform:uppercase;white-space:nowrap;
+}
+.cl-divider-ornament .sym{font-size:11px;color:var(--cl-lilac);opacity:0.85}
+
+.cl-library-wrap{
+  width:100%;
+  opacity:0;transform:translateY(16px);
+  animation:clRevealUp 1.2s cubic-bezier(0.16,1,0.3,1) 0.55s forwards;
 }
 
 .cl-close{
@@ -86,7 +111,7 @@ const STYLES = `
 @keyframes clRevealUp{to{opacity:1;transform:translateY(0)}}
 
 .cl-card{
-  position:relative;width:100%;aspect-ratio:16/9;
+  position:relative;width:100%;max-width:980px;aspect-ratio:16/9;
   border-radius:28px;overflow:hidden;
   opacity:0;transform:translateY(24px) scale(0.985);
   animation:clRevealCard 1.4s cubic-bezier(0.16,1,0.3,1) 0.25s forwards;
@@ -407,6 +432,18 @@ export default function CosmicLibraryModal({ open, onClose }) {
             )}
 
             <div className="cl-sigil" aria-hidden="true">☽ Biblioteca Cósmica</div>
+          </div>
+
+          {/* ─── Bibliotheca Hermetica ─── */}
+          <div className="cl-divider-ornament" aria-hidden="true">
+            <span className="line" />
+            <span className="sym">✦</span>
+            <span className="label">Bibliotheca Hermetica</span>
+            <span className="sym">✦</span>
+            <span className="line" />
+          </div>
+          <div className="cl-library-wrap">
+            <BibliothecaHermetica admin />
           </div>
         </div>
       </div>
