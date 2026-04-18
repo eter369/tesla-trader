@@ -54,7 +54,7 @@ const STYLES = `
   position:relative;z-index:1;
   width:100%;max-width:1280px;
   display:flex;flex-direction:column;align-items:center;
-  gap:48px;
+  gap:32px;
 }
 
 .cl-divider-ornament{
@@ -81,20 +81,26 @@ const STYLES = `
 }
 
 .cl-close{
-  position:absolute;top:-6px;right:-6px;z-index:10;
-  width:40px;height:40px;border-radius:50%;
+  position:fixed;top:20px;right:20px;z-index:90;
+  width:42px;height:42px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  background:rgba(10,5,30,0.7);
-  border:1px solid rgba(216,180,254,0.2);
+  background:rgba(10,5,30,0.78);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(216,180,254,0.22);
   color:var(--cl-ink);
   cursor:pointer;
-  transition:background 0.25s ease, transform 0.25s ease;
+  transition:background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  box-shadow:0 4px 16px rgba(0,0,0,0.4);
 }
-.cl-close:hover{background:rgba(168,85,247,0.25);transform:scale(1.06)}
+.cl-close:hover{
+  background:rgba(168,85,247,0.3);
+  transform:scale(1.08);
+  box-shadow:0 4px 22px rgba(168,85,247,0.4);
+}
 
 .cl-ornament{
   display:flex;align-items:center;justify-content:center;gap:28px;
-  margin-bottom:48px;
   opacity:0;transform:translateY(8px);
   animation:clRevealUp 1.1s cubic-bezier(0.16,1,0.3,1) 0.1s forwards;
 }
@@ -369,14 +375,14 @@ export default function CosmicLibraryModal({ open, onClose }) {
       <div className="cl-root" role="dialog" aria-modal="true" onClick={handleBackdropClick}>
         <div className="cl-ambient" aria-hidden="true" />
 
-        <div className="cl-stage">
-          <button className="cl-close" onClick={onClose} aria-label="Cerrar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+        <button className="cl-close" onClick={onClose} aria-label="Cerrar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
 
+        <div className="cl-stage">
           <div className="cl-ornament" aria-hidden="true">
             <span className="line" />
             <span className="sym">✦</span>
