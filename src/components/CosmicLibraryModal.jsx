@@ -287,8 +287,10 @@ const STYLES = `
 
 .cl-card.cl-playing .cl-ui{display:none}
 .cl-card iframe,.cl-card video{
-  position:absolute;inset:0;width:100%;height:100%;border:none;border-radius:inherit;z-index:4;
+  position:absolute;inset:0;width:100%;height:100%;border:none;border-radius:inherit;
+  z-index:6;background:#000;display:block;object-fit:cover;
 }
+.cl-card video::-webkit-media-controls-panel{background:rgba(0,0,0,0.6)}
 
 @media (prefers-reduced-motion: reduce){
   .cl-root *,.cl-root *::before,.cl-root *::after{
@@ -429,11 +431,14 @@ export default function CosmicLibraryModal({ open, onClose }) {
             )}
             {media?.type === "video" && (
               <video
+                key={media.src}
                 src={media.src}
                 controls
                 autoPlay
+                muted
                 playsInline
                 preload="auto"
+                onError={(e) => console.warn("[CosmicLibraryModal] video error:", e?.target?.error)}
               />
             )}
 
