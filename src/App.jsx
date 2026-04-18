@@ -21,6 +21,7 @@ import BackgroundVideo from "./components/BackgroundVideo";
 import CenterVideo from "./components/CenterVideo";
 import Footer from "./components/Footer";
 import AmbientMusic from "./components/AmbientMusic";
+import BibliotecaPage from "./components/BibliotecaPage";
 
 const CRYPTO_META = {
   bitcoin: { symbol: "BTC", name: "Bitcoin", color: "#f7931a", icon: "B" },
@@ -101,7 +102,33 @@ function LoadingSkeleton() {
   );
 }
 
+// URL-based routing: when pathname matches /biblioteca, render the dedicated
+// page instead of the dashboard. Listens to popstate so back/forward works.
+function usePathname() {
+  const [path, setPath] = useState(() =>
+    typeof window !== "undefined" ? window.location.pathname : "/"
+  );
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  return path;
+}
+
+function isBibliotecaPath(p) {
+  return /^\/biblioteca\/?$/i.test(p || "");
+}
+
 export default function App() {
+  const pathname = usePathname();
+  if (isBibliotecaPath(pathname)) {
+    return <BibliotecaPage />;
+  }
+  return <Dashboard />;
+}
+
+function Dashboard() {
   const { currentTime, moonPhase, lunarInfo, illumination, nextPhaseDate, lunarCalendar } = useMoonPhase();
   const { livePrices, connected, tickDirection } = useWebSocket();
 

@@ -1,12 +1,18 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import AnimatedMoon from "./AnimatedMoon";
 import MysticPortal from "./MysticPortal";
-import CosmicLibraryModal from "./CosmicLibraryModal";
 
 export default function MoonPhaseCard({ moonPhase, lunarInfo, nextPhaseDate }) {
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const openLibrary = useCallback(() => setLibraryOpen(true), []);
-  const closeLibrary = useCallback(() => setLibraryOpen(false), []);
+  // Navigate to dedicated Bibliotheca page (clean URL, full-page experience).
+  // Uses history.pushState + popstate so SPA routing works without a hard reload.
+  const goToBiblioteca = useCallback(() => {
+    const target = "/biblioteca/";
+    if (window.location.pathname !== target) {
+      window.history.pushState({}, "", target);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      window.scrollTo(0, 0);
+    }
+  }, []);
 
   return (
     <div className="card rounded-2xl p-6 flex flex-col items-center animate-pulse-glow">
@@ -48,16 +54,14 @@ export default function MoonPhaseCard({ moonPhase, lunarInfo, nextPhaseDate }) {
             filter: "blur(4px)",
           }}
         />
-        {/* El orbe */}
+        {/* El orbe — navega a /biblioteca/ */}
         <div
           className="absolute inset-0"
           style={{ zIndex: 2, animation: "portalGlowPulse 4s ease-in-out infinite" }}
         >
-          <MysticPortal compact displaySize={110} onEnter={openLibrary} />
+          <MysticPortal compact displaySize={110} onEnter={goToBiblioteca} />
         </div>
       </div>
-
-      <CosmicLibraryModal open={libraryOpen} onClose={closeLibrary} />
 
       <div className="animate-float">
         <AnimatedMoon phase={moonPhase} size={170} />
