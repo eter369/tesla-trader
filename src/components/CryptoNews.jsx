@@ -101,19 +101,40 @@ function calcImpactScore(title) {
   return score;
 }
 
-// RSS feeds — Spanish crypto news sources
+// RSS feeds — mix of Spanish + high-impact English sources
 const RSS_FEEDS = [
+  // Spanish (priority 1 — primary)
   { url: "https://es.cointelegraph.com/rss", source: "CoinTelegraph ES", priority: 1 },
   { url: "https://es.beincrypto.com/feed/", source: "BeInCrypto", priority: 1 },
   { url: "https://www.criptonoticias.com/feed/", source: "CriptoNoticias", priority: 2 },
   { url: "https://diariobitcoin.com/feed/", source: "Diario Bitcoin", priority: 2 },
+  { url: "https://www.dlnews.com/arc/outboundfeeds/rss/?outputType=xml", source: "DL News", priority: 2 },
+  // English (priority 1 — biggest market movers break here first)
+  { url: "https://cointelegraph.com/rss", source: "CoinTelegraph", priority: 1 },
+  { url: "https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml", source: "CoinDesk", priority: 1 },
+  { url: "https://decrypt.co/feed", source: "Decrypt", priority: 2 },
+  { url: "https://bitcoinmagazine.com/.rss/full/", source: "Bitcoin Magazine", priority: 2 },
+  { url: "https://www.theblock.co/rss.xml", source: "The Block", priority: 1 },
+];
+
+// Multiple CORS proxies for redundancy — allorigins is flaky
+const CORS_PROXIES = [
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
 ];
 
 const SOURCE_COLORS = {
   "CoinTelegraph ES": "#1a1a2e",
+  CoinTelegraph: "#1a1a2e",
   BeInCrypto: "#0a2540",
   CriptoNoticias: "#1e293b",
   "Diario Bitcoin": "#f7931a",
+  CoinDesk: "#0066ff",
+  Decrypt: "#ff3b30",
+  "Bitcoin Magazine": "#f7931a",
+  "The Block": "#000000",
+  "DL News": "#7c3aed",
   CryptoPanic: "#3b82f6",
 };
 
@@ -246,33 +267,57 @@ function NewsRow({ d, isTop, delay }) {
   );
 }
 
-async function fetchRSS(feed) {
+async function fetchViaProxy(proxyFn, url, timeoutMs = 8000) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`,
-      { signal: controller.signal }
-    );
+    const res = await fetch(proxyFn(url), { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (!text || text.length < 50) throw new Error("Empty response");
+    return text;
+  } finally {
     clearTimeout(timeout);
-    if (!res.ok) throw new Error("RSS fetch failed");
-    const xml = await res.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xml, "text/xml");
-    // Check for XML parse errors
-    if (doc.querySelector("parsererror")) throw new Error("XML parse error");
-    const items = doc.querySelectorAll("item");
-    if (!items.length) throw new Error("No items");
+  }
+}
+
+async function fetchRSS(feed) {
+  // Try each proxy in order; first success wins
+  let xml = null;
+  let lastErr = null;
+  for (const proxyFn of CORS_PROXIES) {
+    try {
+      xml = await fetchViaProxy(proxyFn, feed.url);
+      break;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (!xml) throw lastErr || new Error("All proxies failed");
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, "text/xml");
+  if (doc.querySelector("parsererror")) throw new Error("XML parse error");
+  const items = doc.querySelectorAll("item, entry");
+  if (!items.length) throw new Error("No items");
 
   const articles = [];
   items.forEach((item, idx) => {
     if (idx >= 20) return;
     const title = item.querySelector("title")?.textContent?.trim() || "";
-    const link = item.querySelector("link")?.textContent?.trim() || "";
-    const pubDate = item.querySelector("pubDate")?.textContent?.trim() || "";
+    // RSS uses <link>text</link>, Atom uses <link href="..."/>
+    let link = item.querySelector("link")?.textContent?.trim() || "";
+    if (!link) {
+      const linkEl = item.querySelector("link[href]");
+      if (linkEl) link = linkEl.getAttribute("href") || "";
+    }
+    const pubDate =
+      item.querySelector("pubDate")?.textContent?.trim() ||
+      item.querySelector("published")?.textContent?.trim() ||
+      item.querySelector("updated")?.textContent?.trim() ||
+      "";
     if (!title) return;
     const score = calcImpactScore(title);
-    // Skip articles with negative score (noise)
     if (score < 0) return;
     articles.push({
       t: title,
@@ -284,14 +329,11 @@ async function fetchRSS(feed) {
       url: link,
       source: feed.source,
       priority: feed.priority,
-      ts: new Date(pubDate).getTime(),
+      ts: pubDate ? new Date(pubDate).getTime() : Date.now(),
       score,
     });
   });
   return articles;
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 async function fetchCryptoNews() {
