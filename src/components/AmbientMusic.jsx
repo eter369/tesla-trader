@@ -19,14 +19,35 @@ export default function AmbientMusic() {
 
   // Music only plays when user presses Play — no global auto-play on interaction
 
+  // Sync UI state with the underlying <video> element so controls stay
+  // accurate even if playback ends, errors, or is paused by the browser
+  // (e.g. mobile autoplay policy, system interruption, focus change).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    const onEnded = () => setPlaying(false);
+    const onVolume = () => setMuted(v.muted);
+    v.addEventListener("play", onPlay);
+    v.addEventListener("pause", onPause);
+    v.addEventListener("ended", onEnded);
+    v.addEventListener("volumechange", onVolume);
+    return () => {
+      v.removeEventListener("play", onPlay);
+      v.removeEventListener("pause", onPause);
+      v.removeEventListener("ended", onEnded);
+      v.removeEventListener("volumechange", onVolume);
+    };
+  }, []);
+
   const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (playing) {
-      videoRef.current.pause();
-      setPlaying(false);
-    } else {
-      videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
-    }
+    const v = videoRef.current;
+    if (!v) return;
+    // State updates flow from the play/pause event listeners above —
+    // we just trigger the action here.
+    if (playing) v.pause();
+    else v.play().catch(() => {});
   };
 
   const toggleMute = () => {

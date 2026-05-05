@@ -124,24 +124,18 @@ const CORS_PROXIES = [
   (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
 ];
 
-const SOURCE_COLORS = {
-  "CoinTelegraph ES": "#1a1a2e",
-  CoinTelegraph: "#1a1a2e",
-  BeInCrypto: "#0a2540",
-  CriptoNoticias: "#1e293b",
-  "Diario Bitcoin": "#f7931a",
-  CoinDesk: "#0066ff",
-  Decrypt: "#ff3b30",
-  "Bitcoin Magazine": "#f7931a",
-  "The Block": "#000000",
-  "DL News": "#7c3aed",
-  CryptoPanic: "#3b82f6",
-};
+
+function safeDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
 
 function formatTimeAgo(dateStr) {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diff = Math.floor((now - date) / 1000);
+  const date = safeDate(dateStr);
+  if (!date) return "—";
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 0) return "ahora";
   if (diff < 60) return "ahora";
   if (diff < 3600) return `${Math.floor(diff / 60)}m`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
@@ -149,13 +143,15 @@ function formatTimeAgo(dateStr) {
 }
 
 function formatDate(dateStr) {
-  const d = new Date(dateStr);
+  const d = safeDate(dateStr);
+  if (!d) return "—";
   const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
 function formatTime(dateStr) {
-  const d = new Date(dateStr);
+  const d = safeDate(dateStr);
+  if (!d) return "—";
   return d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
 }
 

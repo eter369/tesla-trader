@@ -73,29 +73,6 @@ const STYLES = `
   box-shadow:0 4px 22px rgba(168,85,247,0.4);
 }
 
-.bp-divider-ornament{
-  display:flex;align-items:center;justify-content:center;gap:24px;
-  width:100%;
-  opacity:0;transform:translateY(8px);
-  animation:bpRevealUp 1.1s cubic-bezier(0.16,1,0.3,1) 0.4s forwards;
-}
-.bp-divider-ornament .line{
-  flex:1;max-width:240px;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(216,180,254,0.3) 50%,transparent);
-}
-.bp-divider-ornament .label{
-  font-family:"Cinzel",serif;
-  font-size:11px;font-weight:500;letter-spacing:0.42em;
-  color:var(--cl-ink);text-transform:uppercase;white-space:nowrap;
-}
-.bp-divider-ornament .sym{font-size:11px;color:var(--cl-lilac);opacity:0.85}
-
-.bp-library-wrap{
-  width:100%;
-  opacity:0;transform:translateY(16px);
-  animation:bpRevealUp 1.2s cubic-bezier(0.16,1,0.3,1) 0.55s forwards;
-}
-
 .bp-ornament{
   display:flex;align-items:center;justify-content:center;gap:28px;
   opacity:0;transform:translateY(8px);
@@ -181,47 +158,6 @@ const STYLES = `
   opacity:0.05;mix-blend-mode:overlay;pointer-events:none;
 }
 
-.bp-ui{
-  position:absolute;inset:0;z-index:4;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
-  cursor:pointer;border:none;background:transparent;color:inherit;font:inherit;padding:0;
-}
-
-.bp-play{
-  position:relative;width:92px;height:92px;border-radius:50%;
-  background:linear-gradient(180deg, #c084fc 0%, #a855f7 50%, #7e22ce 100%);
-  display:flex;align-items:center;justify-content:center;
-  transition:transform 0.55s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.55s cubic-bezier(0.34,1.56,0.64,1);
-  box-shadow:
-    0 1px 1px rgba(255,255,255,0.3) inset,
-    0 -10px 20px rgba(88,28,135,0.4) inset,
-    0 10px 30px rgba(168,85,247,0.5),
-    0 30px 60px -15px rgba(168,85,247,0.45),
-    0 0 0 0.5px rgba(216,180,254,0.3);
-}
-.bp-play .tri{
-  width:0;height:0;margin-left:6px;
-  border-left:24px solid white;
-  border-top:15px solid transparent;
-  border-bottom:15px solid transparent;
-  filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25));
-}
-.bp-ui:hover .bp-play{
-  transform:scale(1.06);
-}
-
-.bp-caption{display:flex;flex-direction:column;align-items:center;gap:10px;opacity:0.9;transition:opacity 0.4s ease}
-.bp-ui:hover .bp-caption{opacity:1}
-.bp-caption .title{
-  font-family:"Cinzel",serif;
-  font-size:12px;font-weight:500;letter-spacing:0.38em;color:var(--cl-ink);text-transform:uppercase;
-}
-.bp-caption .meta{
-  display:flex;align-items:center;gap:10px;font-size:11px;font-weight:400;
-  letter-spacing:0.2em;color:var(--cl-muted);text-transform:uppercase;
-}
-.bp-caption .meta .dot{width:3px;height:3px;border-radius:50%;background:var(--cl-muted);opacity:0.6}
-
 .bp-chrome{
   position:absolute;top:18px;left:18px;z-index:5;display:flex;align-items:center;gap:8px;
   font-size:10px;letter-spacing:0.25em;color:var(--cl-muted);text-transform:uppercase;opacity:0.75;
@@ -251,7 +187,6 @@ const STYLES = `
   background:linear-gradient(90deg,transparent,rgba(216,180,254,0.3));
 }
 
-.bp-card.bp-playing .bp-ui{display:none}
 .bp-card iframe,.bp-card video{
   position:absolute;inset:0;width:100%;height:100%;border:none;border-radius:inherit;z-index:4;
 }
@@ -264,17 +199,9 @@ const STYLES = `
 }
 `;
 
-function embedUrl(url) {
-  const yt = url.match(/(?:youtu\.be\/|v=)([\w-]{11})/);
-  if (yt) return { type: "iframe", src: `https://www.youtube.com/embed/${yt[1]}?autoplay=1&rel=0` };
-  const vim = url.match(/vimeo\.com\/(\d+)/);
-  if (vim) return { type: "iframe", src: `https://player.vimeo.com/video/${vim[1]}?autoplay=1` };
-  return { type: "video", src: url };
-}
-
 export default function BibliotecaPage() {
   const cardRef = useRef(null);
-  const [media, setMedia] = useState({ type: "video", src: DEFAULT_VIDEO });
+  const [media] = useState({ type: "video", src: DEFAULT_VIDEO });
 
   // Page title + scroll to top on mount
   useEffect(() => {
@@ -303,12 +230,6 @@ export default function BibliotecaPage() {
       card.removeEventListener("mousemove", onMove);
       card.removeEventListener("mouseleave", onLeave);
     };
-  }, []);
-
-  const handlePlayClick = useCallback(() => {
-    const url = window.prompt("Pega la URL del video (YouTube, Vimeo o .mp4):");
-    if (!url) return;
-    setMedia(embedUrl(url.trim()));
   }, []);
 
   const goHome = useCallback(() => {
@@ -343,7 +264,7 @@ export default function BibliotecaPage() {
             <span className="line" />
           </div>
 
-          <div ref={cardRef} className={`bp-card${media ? " bp-playing" : ""}`}>
+          <div ref={cardRef} className="bp-card">
             <div className="bp-halo" aria-hidden="true" />
             <div className="bp-inner" aria-hidden="true" />
             <div className="bp-grain" aria-hidden="true" />
@@ -356,20 +277,6 @@ export default function BibliotecaPage() {
               <span>16:9</span>
               <span className="dots"><span /><span /><span /></span>
             </div>
-
-            {!media && (
-              <button className="bp-ui" onClick={handlePlayClick} aria-label="Reproducir transmisión principal">
-                <span className="bp-play" aria-hidden="true"><span className="tri" /></span>
-                <span className="bp-caption">
-                  <span className="title">Insertar URL del Video</span>
-                  <span className="meta">
-                    <span>YouTube</span><span className="dot" />
-                    <span>Vimeo</span><span className="dot" />
-                    <span>MP4</span>
-                  </span>
-                </span>
-              </button>
-            )}
 
             {media?.type === "iframe" && (
               <iframe
