@@ -129,7 +129,18 @@ export default function App() {
 }
 
 function Dashboard() {
-  const { currentTime, moonPhase, lunarInfo, illumination, nextPhaseDate, lunarCalendar } = useMoonPhase();
+  const {
+    currentTime,
+    moonPhase,
+    lunarInfo,
+    illumination,
+    nextPhaseDate,
+    lunarCalendar,
+    detailedPhase,
+    lunarAge,
+    synodicMonth,
+    nextMajorPhase,
+  } = useMoonPhase();
   const { livePrices, connected, tickDirection } = useWebSocket();
 
   const [selectedCrypto, setSelectedCrypto] = useState(() => {
@@ -302,6 +313,11 @@ function Dashboard() {
                 moonPhase={moonPhase}
                 lunarInfo={lunarInfo}
                 nextPhaseDate={nextPhaseDate}
+                detailedPhase={detailedPhase}
+                lunarAge={lunarAge}
+                synodicMonth={synodicMonth}
+                nextMajorPhase={nextMajorPhase}
+                signal={indicators?.signal}
               />
               <SentimentIndex
                 sentiment={indicators?.sentiment}

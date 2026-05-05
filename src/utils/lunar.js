@@ -1,12 +1,60 @@
 // ─── Lunar Phase Engine ───
 
+export const SYNODIC_MONTH = 29.53058867; // days
+
 export function getMoonPhase(date = new Date()) {
   // Reference: known new moon — January 29, 2025 at 12:36 UTC
   const refNewMoon = Date.UTC(2025, 0, 29, 12, 36, 0);
-  const synodicMonth = 29.53058867; // average synodic month in days
   const diffDays = (date.getTime() - refNewMoon) / 86400000;
-  const phase = (diffDays / synodicMonth) % 1;
+  const phase = (diffDays / SYNODIC_MONTH) % 1;
   return phase < 0 ? phase + 1 : phase;
+}
+
+// Lunar age in days (0 to ~29.5)
+export function getLunarAge(phase) {
+  return phase * SYNODIC_MONTH;
+}
+
+// 8-phase astronomical naming — more precise than the 4-phase trading
+// system. Use for display labels; trading bias still flows from
+// getLunarPhaseInfo (which keeps 4 macro phases for signal stability).
+export function getDetailedPhaseName(phase) {
+  const p = ((phase % 1) + 1) % 1;
+  if (p < 0.03 || p >= 0.97) return { name: "Luna Nueva", icon: "🌑" };
+  if (p < 0.22)              return { name: "Creciente Iluminante", icon: "🌒" };
+  if (p < 0.28)              return { name: "Cuarto Creciente", icon: "🌓" };
+  if (p < 0.47)              return { name: "Gibosa Creciente", icon: "🌔" };
+  if (p < 0.53)              return { name: "Luna Llena", icon: "🌕" };
+  if (p < 0.72)              return { name: "Gibosa Menguante", icon: "🌖" };
+  if (p < 0.78)              return { name: "Cuarto Menguante", icon: "🌗" };
+  return                            { name: "Menguante Diseminante", icon: "🌘" };
+}
+
+// Find the next major phase change (new, 1Q, full, 3Q) from a given date.
+// Returns { date, phase: { name, icon }, daysFromNow, hoursFromNow }
+export function getNextMajorPhase(fromDate = new Date()) {
+  const targets = [
+    { fraction: 0.0,  name: "Luna Nueva",      icon: "🌑" },
+    { fraction: 0.25, name: "Cuarto Creciente", icon: "🌓" },
+    { fraction: 0.5,  name: "Luna Llena",      icon: "🌕" },
+    { fraction: 0.75, name: "Cuarto Menguante", icon: "🌗" },
+  ];
+  const currentPhase = getMoonPhase(fromDate);
+  // Distance forward in cycle (always positive)
+  let best = null;
+  for (const t of targets) {
+    let delta = t.fraction - currentPhase;
+    if (delta <= 0.005) delta += 1; // already passed this cycle (small tolerance)
+    if (!best || delta < best.delta) best = { ...t, delta };
+  }
+  const daysAhead = best.delta * SYNODIC_MONTH;
+  const date = new Date(fromDate.getTime() + daysAhead * 86400000);
+  return {
+    date,
+    phase: { name: best.name, icon: best.icon },
+    daysFromNow: daysAhead,
+    hoursFromNow: daysAhead * 24,
+  };
 }
 
 export function getLunarPhaseInfo(phase) {

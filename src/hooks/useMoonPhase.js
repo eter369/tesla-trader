@@ -1,5 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
-import { getMoonPhase, getLunarPhaseInfo, getMoonIllumination } from "../utils/lunar";
+import {
+  getMoonPhase,
+  getLunarPhaseInfo,
+  getMoonIllumination,
+  getDetailedPhaseName,
+  getNextMajorPhase,
+  getLunarAge,
+  SYNODIC_MONTH,
+} from "../utils/lunar";
 
 export function useMoonPhase() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -12,6 +20,9 @@ export function useMoonPhase() {
   const moonPhase = getMoonPhase(currentTime);
   const lunarInfo = getLunarPhaseInfo(moonPhase);
   const illumination = getMoonIllumination(moonPhase);
+  const detailedPhase = getDetailedPhaseName(moonPhase);
+  const lunarAge = getLunarAge(moonPhase);
+  const nextMajorPhase = getNextMajorPhase(currentTime);
 
   const nextPhaseDate = useMemo(() => {
     for (let i = 1; i <= 30; i++) {
@@ -46,5 +57,16 @@ export function useMoonPhase() {
     return days;
   }, [currentTime.toDateString()]);
 
-  return { currentTime, moonPhase, lunarInfo, illumination, nextPhaseDate, lunarCalendar };
+  return {
+    currentTime,
+    moonPhase,
+    lunarInfo,
+    illumination,
+    nextPhaseDate,
+    lunarCalendar,
+    detailedPhase,
+    lunarAge,
+    synodicMonth: SYNODIC_MONTH,
+    nextMajorPhase,
+  };
 }
