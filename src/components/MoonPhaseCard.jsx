@@ -160,11 +160,13 @@ function BiasRing({ size, value, color }) {
 export default function MoonPhaseCard({
   moonPhase,
   lunarInfo,
-  nextPhaseDate,
+  nextPhaseDate, // eslint-disable-line no-unused-vars -- kept for prop compatibility
   detailedPhase,
   lunarAge,
   synodicMonth,
   nextMajorPhase,
+  nextNewMoon,
+  nextFullMoon,
   signal,
 }) {
   // Navigate to dedicated Bibliotheca page (clean URL, full-page experience).
@@ -291,12 +293,25 @@ export default function MoonPhaseCard({
       {/* Cycle timeline */}
       <CycleTimeline phase={moonPhase} accentColor={lunarInfo.color} />
 
-      {nextPhaseDate && (
-        <div className="mt-3 pt-3 border-t border-gray-800/50 w-full text-center">
-          <p className="text-gray-600 text-[10px] tracking-wider">
-            {nextPhaseDate.phase.icon}{" "}
-            {nextPhaseDate.date.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}
-          </p>
+      {/* Próximas lunas — fechas astronómicas precisas (no límites de bucket) */}
+      {(nextNewMoon || nextFullMoon) && (
+        <div className="mt-3 pt-3 border-t border-gray-800/50 w-full grid grid-cols-2 gap-2 text-center">
+          {nextNewMoon && (
+            <div>
+              <div className="text-[8px] tracking-[0.2em] uppercase text-gray-600 font-semibold">Luna Nueva</div>
+              <p className="text-gray-400 text-[10px] tracking-wider mt-0.5">
+                🌑 {nextNewMoon.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" })}
+              </p>
+            </div>
+          )}
+          {nextFullMoon && (
+            <div>
+              <div className="text-[8px] tracking-[0.2em] uppercase text-gray-600 font-semibold">Luna Llena</div>
+              <p className="text-gray-400 text-[10px] tracking-wider mt-0.5">
+                🌕 {nextFullMoon.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" })}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

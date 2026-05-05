@@ -5,6 +5,8 @@ import {
   getMoonIllumination,
   getDetailedPhaseName,
   getNextMajorPhase,
+  getNextNewMoon,
+  getNextFullMoon,
   getLunarAge,
   SYNODIC_MONTH,
 } from "../utils/lunar";
@@ -23,6 +25,8 @@ export function useMoonPhase() {
   const detailedPhase = getDetailedPhaseName(moonPhase);
   const lunarAge = getLunarAge(moonPhase);
   const nextMajorPhase = getNextMajorPhase(currentTime);
+  const nextNewMoon = useMemo(() => getNextNewMoon(currentTime), [currentTime.toDateString()]);
+  const nextFullMoon = useMemo(() => getNextFullMoon(currentTime), [currentTime.toDateString()]);
 
   const nextPhaseDate = useMemo(() => {
     for (let i = 1; i <= 30; i++) {
@@ -68,5 +72,7 @@ export function useMoonPhase() {
     lunarAge,
     synodicMonth: SYNODIC_MONTH,
     nextMajorPhase,
+    nextNewMoon,
+    nextFullMoon,
   };
 }

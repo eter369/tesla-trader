@@ -140,6 +140,8 @@ function Dashboard() {
     lunarAge,
     synodicMonth,
     nextMajorPhase,
+    nextNewMoon,
+    nextFullMoon,
   } = useMoonPhase();
   const { livePrices, connected, tickDirection } = useWebSocket();
 
@@ -317,6 +319,8 @@ function Dashboard() {
                 lunarAge={lunarAge}
                 synodicMonth={synodicMonth}
                 nextMajorPhase={nextMajorPhase}
+                nextNewMoon={nextNewMoon}
+                nextFullMoon={nextFullMoon}
                 signal={indicators?.signal}
               />
               <SentimentIndex

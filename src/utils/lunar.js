@@ -30,6 +30,26 @@ export function getDetailedPhaseName(phase) {
   return                            { name: "Menguante Diseminante", icon: "🌘" };
 }
 
+// Precise astronomical date for the next time the moon reaches a specific
+// phase fraction (0 = new, 0.25 = 1Q, 0.5 = full, 0.75 = 3Q). Returns the
+// actual moment, not a bucket boundary — so the new moon date matches what
+// astronomers publish, not when the "Luna Nueva" label range begins.
+export function getNextPhaseAt(targetFraction, fromDate = new Date()) {
+  const currentPhase = getMoonPhase(fromDate);
+  let delta = targetFraction - currentPhase;
+  // Forward in time: if target is at/just-past current, jump to next cycle
+  if (delta <= 0) delta += 1;
+  const daysAhead = delta * SYNODIC_MONTH;
+  return new Date(fromDate.getTime() + daysAhead * 86400000);
+}
+
+export function getNextNewMoon(fromDate = new Date()) {
+  return getNextPhaseAt(0, fromDate);
+}
+export function getNextFullMoon(fromDate = new Date()) {
+  return getNextPhaseAt(0.5, fromDate);
+}
+
 // Find the next major phase change (new, 1Q, full, 3Q) from a given date.
 // Returns { date, phase: { name, icon }, daysFromNow, hoursFromNow }
 export function getNextMajorPhase(fromDate = new Date()) {
