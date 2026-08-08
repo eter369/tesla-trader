@@ -1,11 +1,76 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
+
+// El modo expandido agranda el vídeo sin sacarlo de su sitio en el árbol de
+// React: solo cambian las clases. Moverlo a un portal lo remontaría y la
+// reproducción volvería a empezar desde cero.
+//
+// El único obstáculo era que la tarjeta contenedora tiene backdrop-filter, que
+// crea un containing block y anclaría el overlay a la tarjeta en vez de a la
+// pantalla; por eso `.am-host--expanded` lo desactiva mientras dura la
+// ampliación. Se descartó la API nativa de pantalla completa porque en vistas
+// embebidas (como el panel de previsualización) la promesa se queda pendiente
+// y nunca llega a abrirse.
+const EXPAND_STYLES = `
+@keyframes am-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes am-zoom-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+
+/* Sin backdrop-filter el overlay hijo vuelve a anclarse al viewport.
+   El aspect-ratio conserva el hueco de la tarjeta para que no salte el layout. */
+.am-host--expanded {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  aspect-ratio: 16 / 9;
+}
+
+.am-stage--expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(3vh, 20px) max(3vw, 20px);
+  background: radial-gradient(ellipse at 50% 45%, rgba(24, 12, 52, 0.92) 0%, rgba(4, 4, 12, 0.97) 65%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: am-fade-in 0.28s ease both;
+}
+
+/* Escala hasta llenar el hueco sin deformar. Con width:auto se quedaba a su
+   tamaño nativo (640x360) y apenas crecía. Se mantiene la proporción 16/9 en el
+   propio elemento para que el borde redondeado y la sombra abracen la imagen y
+   no una caja mayor con franjas negras. */
+.am-stage--expanded video {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain !important;
+  border-radius: 14px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.75), 0 0 70px rgba(139, 92, 246, 0.16);
+  animation: am-zoom-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Los controles crecen con la escena para seguir siendo cómodos en grande */
+.am-stage--expanded .am-play { width: 84px; height: 84px; }
+.am-stage--expanded .am-play svg { width: 32px; height: 32px; }
+.am-stage--expanded .am-corner-btn { width: 42px; height: 42px; opacity: 1; }
+.am-stage--expanded .am-corner-btn svg { width: 17px; height: 17px; }
+.am-stage--expanded .am-scrim { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .am-stage--expanded, .am-stage--expanded video { animation: none; }
+}
+`;
 
 export default function AmbientMusic() {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const stageRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   // Fade in on scroll
   useEffect(() => {
@@ -56,23 +121,54 @@ export default function AmbientMusic() {
     setMuted(videoRef.current.muted);
   };
 
+  const toggleExpand = useCallback(() => setExpanded((e) => !e), []);
+
+  // Escape cierra y el scroll del fondo se bloquea mientras está ampliado.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e) => { if (e.key === "Escape") setExpanded(false); };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [expanded]);
+
+  // Clic en el fondo (fuera del vídeo) cierra la ampliación.
+  const handleStageClick = (e) => {
+    if (expanded && e.target === stageRef.current) setExpanded(false);
+  };
+
   return (
     <>
+      <style>{EXPAND_STYLES}</style>
+
       {/* Video card in page */}
       <div
         ref={containerRef}
-        className="card rounded-2xl overflow-hidden mt-4 relative group"
+        className={`card rounded-2xl overflow-hidden mt-4 relative group${expanded ? " am-host--expanded" : ""}`}
         style={{
-          opacity: visible ? 1 : 0,
-          transition: "opacity 0.8s ease",
+          // Ampliado siempre visible: la tarjeta se atenúa al salir de pantalla
+          // y, al ser un ancestro, su opacidad 0 ocultaba también el overlay.
+          // Sin transición al ampliar: el fundido de entrada solo tiene sentido
+          // al aparecer con el scroll, no al pulsar un botón.
+          opacity: expanded || visible ? 1 : 0,
+          transition: expanded ? "none" : "opacity 0.8s ease",
         }}
       >
-        <div className="relative">
+        <div
+          ref={stageRef}
+          onClick={handleStageClick}
+          className={`am-stage relative${expanded ? " am-stage--expanded" : ""}`}
+        >
           <video
             ref={videoRef}
             loop
             playsInline
             preload="auto"
+            onDoubleClick={toggleExpand}
             className="w-full block"
             style={{ aspectRatio: "16 / 9", objectFit: "cover" }}
           >
@@ -83,7 +179,7 @@ export default function AmbientMusic() {
           <div className="absolute inset-0 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
             <button
               onClick={togglePlay}
-              className="w-14 h-14 sm:w-12 sm:h-12 rounded-full flex items-center justify-center pointer-events-auto active:scale-95 transition-transform"
+              className="am-play w-14 h-14 sm:w-12 sm:h-12 rounded-full flex items-center justify-center pointer-events-auto active:scale-95 transition-transform"
               style={{
                 background: "rgba(10,5,30,0.55)",
                 backdropFilter: "blur(14px)",
@@ -105,10 +201,35 @@ export default function AmbientMusic() {
             </button>
           </div>
 
+          {/* Expandir / contraer — doble clic en el vídeo hace lo mismo */}
+          <button
+            onClick={toggleExpand}
+            className="am-corner-btn absolute top-3 left-3 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 z-10 active:scale-95"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.12)" }}
+            title={expanded ? "Salir de pantalla completa" : "Ver más grande"}
+            aria-label={expanded ? "Salir de pantalla completa" : "Ver más grande"}
+          >
+            {expanded ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="4 14 10 14 10 20" />
+                <polyline points="20 10 14 10 14 4" />
+                <line x1="14" y1="10" x2="21" y2="3" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9" />
+                <polyline points="9 21 3 21 3 15" />
+                <line x1="21" y1="3" x2="14" y2="10" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            )}
+          </button>
+
           {/* Mute toggle — always visible on mobile */}
           <button
             onClick={toggleMute}
-            className="absolute top-3 right-3 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 z-10 active:scale-95"
+            className="am-corner-btn absolute top-3 right-3 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 z-10 active:scale-95"
             style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.12)" }}
             aria-label={muted ? "Activar sonido" : "Silenciar"}
           >
@@ -126,7 +247,7 @@ export default function AmbientMusic() {
           </button>
 
           {/* Bottom gradient for legibility */}
-          <div className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(5,5,16,0.55), transparent)" }} />
+          <div className="am-scrim absolute bottom-0 left-0 right-0 h-12 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(5,5,16,0.55), transparent)" }} />
         </div>
       </div>
 
@@ -191,6 +312,29 @@ export default function AmbientMusic() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
               <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          )}
+        </button>
+
+        {/* Expandir desde el control flotante: el vídeo vive en la barra
+            lateral y suele quedar fuera de vista al hacer scroll. */}
+        <button
+          onClick={toggleExpand}
+          className="w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
+          title={expanded ? "Salir de pantalla completa" : "Ver más grande"}
+          aria-label={expanded ? "Salir de pantalla completa" : "Ver más grande"}
+        >
+          {expanded ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 14 10 14 10 20" />
+              <polyline points="20 10 14 10 14 4" />
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
             </svg>
           )}
         </button>
