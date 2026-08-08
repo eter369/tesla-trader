@@ -1,26 +1,16 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 
-// El modo expandido agranda el vídeo sin sacarlo de su sitio en el árbol de
-// React: solo cambian las clases. Moverlo a un portal lo remontaría y la
-// reproducción volvería a empezar desde cero.
+// El modo expandido monta el escenario en <body> mediante un portal. Es la
+// única forma fiable de que el overlay quede por encima de todo: dentro de la
+// barra lateral heredaba los contextos de apilamiento del dashboard y tarjetas
+// como el calendario lunar se pintaban encima por mucho z-index que llevara.
 //
-// El único obstáculo era que la tarjeta contenedora tiene backdrop-filter, que
-// crea un containing block y anclaría el overlay a la tarjeta en vez de a la
-// pantalla; por eso `.am-host--expanded` lo desactiva mientras dura la
-// ampliación. Se descartó la API nativa de pantalla completa porque en vistas
-// embebidas (como el panel de previsualización) la promesa se queda pendiente
-// y nunca llega a abrirse.
+// Se descartó la API nativa de pantalla completa porque en vistas embebidas la
+// promesa de requestFullscreen() se queda pendiente y nunca llega a abrirse.
 const EXPAND_STYLES = `
 @keyframes am-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes am-zoom-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
-
-/* Sin backdrop-filter el overlay hijo vuelve a anclarse al viewport.
-   El aspect-ratio conserva el hueco de la tarjeta para que no salte el layout. */
-.am-host--expanded {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  aspect-ratio: 16 / 9;
-}
 
 .am-stage--expanded {
   position: fixed;
@@ -67,6 +57,7 @@ export default function AmbientMusic() {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const stageRef = useRef(null);
+  const resumeRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -87,6 +78,10 @@ export default function AmbientMusic() {
   // Sync UI state with the underlying <video> element so controls stay
   // accurate even if playback ends, errors, or is paused by the browser
   // (e.g. mobile autoplay policy, system interruption, focus change).
+  //
+  // Depende de `expanded` porque al ampliar el <video> se remonta en el portal:
+  // sin esto los listeners quedarían atados al nodo antiguo y los botones
+  // dejarían de reflejar el estado real.
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -104,7 +99,7 @@ export default function AmbientMusic() {
       v.removeEventListener("ended", onEnded);
       v.removeEventListener("volumechange", onVolume);
     };
-  }, []);
+  }, [expanded]);
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -121,7 +116,30 @@ export default function AmbientMusic() {
     setMuted(videoRef.current.muted);
   };
 
-  const toggleExpand = useCallback(() => setExpanded((e) => !e), []);
+  // Mover el escenario al <body> hace que React remonte el <video>, y un vídeo
+  // recién montado arranca desde cero. Guardamos dónde iba para restaurarlo.
+  const toggleExpand = useCallback(() => {
+    const v = videoRef.current;
+    if (v) resumeRef.current = { time: v.currentTime, playing: !v.paused, muted: v.muted };
+    setExpanded((e) => !e);
+  }, []);
+
+  // Se restaura antes de pintar para que no se vea el salto al fotograma 0.
+  useLayoutEffect(() => {
+    const v = videoRef.current;
+    const resume = resumeRef.current;
+    if (!v || !resume) return;
+    resumeRef.current = null;
+
+    v.muted = resume.muted;
+    const restore = () => {
+      if (Math.abs(v.currentTime - resume.time) > 0.3) v.currentTime = resume.time;
+      if (resume.playing) v.play().catch(() => {});
+    };
+    // El archivo ya está en caché, así que casi siempre hay metadatos listos.
+    if (v.readyState >= 1) restore();
+    else v.addEventListener("loadedmetadata", restore, { once: true });
+  }, [expanded]);
 
   // Escape cierra y el scroll del fondo se bloquea mientras está ampliado.
   useEffect(() => {
@@ -141,28 +159,12 @@ export default function AmbientMusic() {
     if (expanded && e.target === stageRef.current) setExpanded(false);
   };
 
-  return (
-    <>
-      <style>{EXPAND_STYLES}</style>
-
-      {/* Video card in page */}
-      <div
-        ref={containerRef}
-        className={`card rounded-2xl overflow-hidden mt-4 relative group${expanded ? " am-host--expanded" : ""}`}
-        style={{
-          // Ampliado siempre visible: la tarjeta se atenúa al salir de pantalla
-          // y, al ser un ancestro, su opacidad 0 ocultaba también el overlay.
-          // Sin transición al ampliar: el fundido de entrada solo tiene sentido
-          // al aparecer con el scroll, no al pulsar un botón.
-          opacity: expanded || visible ? 1 : 0,
-          transition: expanded ? "none" : "opacity 0.8s ease",
-        }}
-      >
-        <div
-          ref={stageRef}
-          onClick={handleStageClick}
-          className={`am-stage relative${expanded ? " am-stage--expanded" : ""}`}
-        >
+  const stage = (
+    <div
+      ref={stageRef}
+      onClick={handleStageClick}
+      className={`am-stage relative${expanded ? " am-stage--expanded" : ""}`}
+    >
           <video
             ref={videoRef}
             loop
@@ -246,10 +248,33 @@ export default function AmbientMusic() {
             )}
           </button>
 
-          {/* Bottom gradient for legibility */}
-          <div className="am-scrim absolute bottom-0 left-0 right-0 h-12 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(5,5,16,0.55), transparent)" }} />
-        </div>
+      {/* Bottom gradient for legibility */}
+      <div className="am-scrim absolute bottom-0 left-0 right-0 h-12 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(5,5,16,0.55), transparent)" }} />
+    </div>
+  );
+
+  return (
+    <>
+      <style>{EXPAND_STYLES}</style>
+
+      {/* Video card in page */}
+      <div
+        ref={containerRef}
+        className="card rounded-2xl overflow-hidden mt-4 relative group"
+        style={{
+          opacity: visible ? 1 : 0,
+          transition: "opacity 0.8s ease",
+        }}
+      >
+        {/* Al ampliar, el escenario se va al <body> y aquí queda un hueco de la
+            misma proporción para que no salte el layout de la barra lateral. */}
+        {expanded ? <div style={{ aspectRatio: "16 / 9" }} /> : stage}
       </div>
+
+      {/* Montado en <body>: así el overlay escapa de los contextos de
+          apilamiento del dashboard, que lo dejaban por debajo de tarjetas como
+          el calendario lunar por mucho z-index que le pusiéramos. */}
+      {expanded && createPortal(stage, document.body)}
 
       {/* Floating mini control — bottom (right on desktop, centered on mobile) */}
       <div
