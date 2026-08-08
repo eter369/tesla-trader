@@ -1,185 +1,22 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Newspaper, Clock, Star, RefreshCw, ExternalLink } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Newspaper, Clock, Star, RefreshCw } from "lucide-react";
+import {
+  fetchCryptoNews,
+  buildSections,
+  readCache,
+  formatTimeAgo,
+  formatDate,
+  impactLevel,
+  COIN_COLORS,
+  REFRESH_MS,
+} from "../utils/cryptoNews";
+import { translateBatch, getCachedTranslation } from "../utils/translate";
 
 const IMPACT = {
   bullish: { color: "#10b981", arrow: "↑" },
   bearish: { color: "#ef4444", arrow: "↓" },
   neutral: { color: "#a78bfa", arrow: "→" },
 };
-
-const COIN_COLORS = {
-  BTC: "#f7931a", ETH: "#627eea", SOL: "#9945ff", BNB: "#f0b90b",
-  XRP: "#00aae4", ADA: "#0033ad", DOGE: "#c2a633", DOT: "#e6007a",
-  AVAX: "#e84142", LINK: "#2a5ada", MATIC: "#8247e5", UNI: "#ff007a",
-};
-
-const COIN_KEYWORDS = {
-  BTC: ["bitcoin", "btc", "satoshi"],
-  ETH: ["ethereum", "eth", "vitalik"],
-  SOL: ["solana", "sol"],
-  BNB: ["binance", "bnb"],
-  XRP: ["ripple", "xrp"],
-  ADA: ["cardano", "ada"],
-  DOGE: ["dogecoin", "doge"],
-  AVAX: ["avalanche", "avax"],
-  LINK: ["chainlink", "link"],
-  DOT: ["polkadot"],
-};
-
-const BULLISH_WORDS = [
-  "surge", "rally", "soar", "bull", "gain", "record", "high", "pump", "breakout", "approval",
-  "adopt", "launch", "partner", "milestone", "growth", "profit", "boom", "etf approved", "institutional",
-  "all-time", "ath",
-  // Español
-  "sube", "alza", "récord", "máximo", "alcista", "aprobación", "adopción", "ganancia", "repunte",
-  "impulso", "supera", "despega", "lanzamiento", "alianza", "crecimiento", "beneficio",
-];
-const BEARISH_WORDS = [
-  "crash", "drop", "plunge", "bear", "fall", "hack", "exploit", "ban", "lawsuit", "sec charges",
-  "fraud", "scam", "dump", "selloff", "liquidat", "bankrupt", "collapse",
-  // Español
-  "baja", "caída", "desplome", "bajista", "fraude", "estafa", "demanda", "prohibición",
-  "quiebra", "liquidación", "colapso", "pierde", "retrocede", "mínimo", "hackeo",
-];
-
-// Keywords that indicate HIGH IMPACT for crypto trading
-const HIGH_IMPACT_WORDS = [
-  // Regulation & policy (EN + ES)
-  "etf", "sec", "regulation", "regulat", "congress", "senate", "bill", "law", "legal", "ban",
-  "stablecoin", "cbdc", "fed", "federal reserve", "treasury", "executive order", "framework",
-  "regulación", "congreso", "senado", "ley", "legisl", "prohib", "aprobación",
-  // Institutional & adoption (EN + ES)
-  "institutional", "blackrock", "fidelity", "jpmorgan", "goldman", "morgan stanley", "bank",
-  "custody", "wall street", "pension", "sovereign", "adoption", "mainstream",
-  "institucional", "banco", "custodia", "adopción", "inversión",
-  // Major market events (EN + ES)
-  "halving", "etf approv", "etf reject", "listing", "delist", "liquidat", "billion",
-  "million", "record", "all-time", "ath", "crash", "rally", "surge", "plunge",
-  "récord", "máximo histórico", "millones", "billones", "liquidación",
-  // Security & hacks (EN + ES)
-  "hack", "exploit", "breach", "stolen", "vulnerability", "attack",
-  "hackeo", "robo", "vulnerabilidad", "ataque", "brecha",
-  // Major projects
-  "bitcoin", "ethereum", "solana", "merge", "upgrade", "fork", "layer 2", "l2",
-  "actualización",
-  // Macro (EN + ES)
-  "inflation", "interest rate", "rate cut", "recession", "tariff", "trade war",
-  "china", "trump", "biden",
-  "inflación", "tasa de interés", "recesión", "aranceles", "guerra comercial",
-];
-
-// Filter out non-crypto noise
-const NOISE_WORDS = [
-  "horoscope", "zodiac", "celebrity gossip", "movie review", "sports score",
-  "weather forecast", "recipe", "fashion", "beauty tips",
-];
-
-function calcImpactScore(title) {
-  const lower = title.toLowerCase();
-  let score = 0;
-
-  // High impact keyword matches (core trading relevance)
-  for (const word of HIGH_IMPACT_WORDS) {
-    if (lower.includes(word)) score += 3;
-  }
-
-  // Coin mentions boost relevance
-  for (const keywords of Object.values(COIN_KEYWORDS)) {
-    if (keywords.some(k => lower.includes(k))) score += 2;
-  }
-
-  // Sentiment words = market-moving
-  for (const w of BULLISH_WORDS) { if (lower.includes(w)) score += 1; }
-  for (const w of BEARISH_WORDS) { if (lower.includes(w)) score += 1; }
-
-  // Numbers with $ or % indicate market data
-  if (/\$[\d,.]+[bmtk]/i.test(lower) || /\d+%/.test(lower)) score += 2;
-
-  // Noise penalty
-  for (const w of NOISE_WORDS) { if (lower.includes(w)) score -= 10; }
-
-  return score;
-}
-
-// RSS feeds — mix of Spanish + high-impact English sources
-const RSS_FEEDS = [
-  // Spanish (priority 1 — primary)
-  { url: "https://es.cointelegraph.com/rss", source: "CoinTelegraph ES", priority: 1 },
-  { url: "https://es.beincrypto.com/feed/", source: "BeInCrypto", priority: 1 },
-  { url: "https://www.criptonoticias.com/feed/", source: "CriptoNoticias", priority: 2 },
-  { url: "https://diariobitcoin.com/feed/", source: "Diario Bitcoin", priority: 2 },
-  { url: "https://www.dlnews.com/arc/outboundfeeds/rss/?outputType=xml", source: "DL News", priority: 2 },
-  // English (priority 1 — biggest market movers break here first)
-  { url: "https://cointelegraph.com/rss", source: "CoinTelegraph", priority: 1 },
-  { url: "https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml", source: "CoinDesk", priority: 1 },
-  { url: "https://decrypt.co/feed", source: "Decrypt", priority: 2 },
-  { url: "https://bitcoinmagazine.com/.rss/full/", source: "Bitcoin Magazine", priority: 2 },
-  { url: "https://www.theblock.co/rss.xml", source: "The Block", priority: 1 },
-];
-
-// Multiple CORS proxies for redundancy — allorigins is flaky
-const CORS_PROXIES = [
-  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-];
-
-
-function safeDate(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function formatTimeAgo(dateStr) {
-  const date = safeDate(dateStr);
-  if (!date) return "—";
-  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (diff < 0) return "ahora";
-  if (diff < 60) return "ahora";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
-}
-
-function formatDate(dateStr) {
-  const d = safeDate(dateStr);
-  if (!d) return "—";
-  const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  return `${d.getDate()} ${months[d.getMonth()]}`;
-}
-
-function formatTime(dateStr) {
-  const d = safeDate(dateStr);
-  if (!d) return "—";
-  return d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
-}
-
-function getWeekRange() {
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() - 6);
-  const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  return `${start.getDate()} ${months[start.getMonth()]} - ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-}
-
-function detectCoins(title) {
-  const lower = title.toLowerCase();
-  const found = [];
-  for (const [symbol, keywords] of Object.entries(COIN_KEYWORDS)) {
-    if (keywords.some(k => lower.includes(k))) found.push(symbol);
-  }
-  return found;
-}
-
-function detectSentiment(title) {
-  const lower = title.toLowerCase();
-  const bull = BULLISH_WORDS.filter(w => lower.includes(w)).length;
-  const bear = BEARISH_WORDS.filter(w => lower.includes(w)).length;
-  if (bull > bear) return "bullish";
-  if (bear > bull) return "bearish";
-  return "neutral";
-}
 
 function PriceTicker({ livePrices, marketData }) {
   const tickers = useMemo(() => {
@@ -217,8 +54,30 @@ function PriceTicker({ livePrices, marketData }) {
   );
 }
 
-function NewsRow({ d, isTop, delay }) {
+// Barras de impacto: hacen verificable de un vistazo que la lista está
+// ordenada por importancia y no por fecha.
+function ImpactBars({ level }) {
+  return (
+    <span className="flex items-end gap-px flex-shrink-0" title={`Impacto ${level.label}`}>
+      {[3, 5, 7].map((h, i) => (
+        <span key={h} className="w-[2px] rounded-sm"
+          style={{
+            height: h,
+            background: i < level.bars ? level.color : "#ffffff14",
+          }} />
+      ))}
+    </span>
+  );
+}
+
+function NewsRow({ d, rank, isTop, delay }) {
   const impact = IMPACT[d.i] || IMPACT.neutral;
+  const level = impactLevel(d.score || 0);
+  // Los titulares en inglés se muestran traducidos; el original queda en el
+  // tooltip para poder contrastarlo.
+  const title = d.display || d.t;
+  const isTranslated = title !== d.t;
+
   return (
     <a href={d.url} target="_blank" rel="noopener noreferrer"
       className="group relative block py-2.5 border-b border-gray-800/20 last:border-0 animate-slide-in cursor-pointer"
@@ -230,6 +89,10 @@ function NewsRow({ d, isTop, delay }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+            <span className="text-[8px] font-black text-gray-700 font-mono tabular-nums">
+              {String(rank).padStart(2, "0")}
+            </span>
+            <ImpactBars level={level} />
             {isTop && (
               <span className="text-[8px] font-black tracking-widest text-amber-400 bg-amber-400/10 px-1.5 py-px rounded flex items-center gap-0.5">
                 <Star size={7} fill="currentColor" /> TOP
@@ -241,10 +104,11 @@ function NewsRow({ d, isTop, delay }) {
                 {d.source}
               </span>
             )}
-            <span className="text-[9px] text-gray-700 font-mono ml-auto">{d.ago}</span>
+            <span className="text-[9px] text-gray-700 font-mono ml-auto">{formatTimeAgo(d.ts)}</span>
           </div>
-          <h4 className="text-[11px] font-bold text-gray-200 leading-snug mb-1 group-hover:text-amber-300/90 transition-colors">
-            {d.t}
+          <h4 className="text-[11px] font-bold text-gray-200 leading-snug mb-1 group-hover:text-amber-300/90 transition-colors"
+            title={isTranslated ? `Original: ${d.t}` : undefined}>
+            {title}
           </h4>
           <div className="flex items-center gap-1 flex-wrap">
             {d.coins?.slice(0, 3).map((c) => (
@@ -253,9 +117,7 @@ function NewsRow({ d, isTop, delay }) {
                 {c}
               </span>
             ))}
-            <span className="text-[8px] text-gray-700 font-mono ml-auto">
-              {d.date}
-            </span>
+            <span className="text-[8px] text-gray-700 font-mono ml-auto">{formatDate(d.ts)}</span>
           </div>
         </div>
       </div>
@@ -263,207 +125,119 @@ function NewsRow({ d, isTop, delay }) {
   );
 }
 
-async function fetchViaProxy(proxyFn, url, timeoutMs = 8000) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(proxyFn(url), { signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    if (!text || text.length < 50) throw new Error("Empty response");
-    return text;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function fetchRSS(feed) {
-  // Try each proxy in order; first success wins
-  let xml = null;
-  let lastErr = null;
-  for (const proxyFn of CORS_PROXIES) {
-    try {
-      xml = await fetchViaProxy(proxyFn, feed.url);
-      break;
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  if (!xml) throw lastErr || new Error("All proxies failed");
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xml, "text/xml");
-  if (doc.querySelector("parsererror")) throw new Error("XML parse error");
-  const items = doc.querySelectorAll("item, entry");
-  if (!items.length) throw new Error("No items");
-
-  const articles = [];
-  items.forEach((item, idx) => {
-    if (idx >= 20) return;
-    const title = item.querySelector("title")?.textContent?.trim() || "";
-    // RSS uses <link>text</link>, Atom uses <link href="..."/>
-    let link = item.querySelector("link")?.textContent?.trim() || "";
-    if (!link) {
-      const linkEl = item.querySelector("link[href]");
-      if (linkEl) link = linkEl.getAttribute("href") || "";
-    }
-    const pubDate =
-      item.querySelector("pubDate")?.textContent?.trim() ||
-      item.querySelector("published")?.textContent?.trim() ||
-      item.querySelector("updated")?.textContent?.trim() ||
-      "";
-    if (!title) return;
-    const score = calcImpactScore(title);
-    if (score < 0) return;
-    articles.push({
-      t: title,
-      i: detectSentiment(title),
-      coins: detectCoins(title),
-      date: formatDate(pubDate),
-      time: formatTime(pubDate),
-      ago: formatTimeAgo(pubDate),
-      url: link,
-      source: feed.source,
-      priority: feed.priority,
-      ts: pubDate ? new Date(pubDate).getTime() : Date.now(),
-      score,
-    });
-  });
-  return articles;
-}
-
-async function fetchCryptoNews() {
-  const now = Date.now();
-  const oneDayAgo = now - 24 * 60 * 60 * 1000;
-  const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
-
-  let allArticles = [];
-
-  // Fetch from RSS feeds in parallel
-  const results = await Promise.allSettled(RSS_FEEDS.map(f => fetchRSS(f)));
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      allArticles.push(...result.value);
-    }
-  }
-
-  // Fallback: CryptoPanic
-  if (allArticles.length === 0) {
-    try {
-      const res = await fetch(
-        "https://cryptopanic.com/api/free/v1/posts/?auth_token=free&public=true&kind=news&filter=important&regions=en"
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.results?.length) {
-          allArticles = data.results.map(item => {
-            const coins = (item.currencies || []).map(c => c.code).filter(Boolean);
-            const votes = item.votes || {};
-            const pos = (votes.positive || 0) + (votes.important || 0);
-            const neg = (votes.negative || 0) + (votes.toxic || 0);
-            return {
-              t: item.title || "",
-              i: pos > neg + 1 ? "bullish" : neg > pos + 1 ? "bearish" : "neutral",
-              coins,
-              date: formatDate(item.published_at || item.created_at),
-              time: formatTime(item.published_at || item.created_at),
-              ago: formatTimeAgo(item.published_at || item.created_at),
-              url: item.url,
-              source: "CryptoPanic",
-              priority: 1,
-              ts: new Date(item.published_at || item.created_at).getTime(),
-            };
-          });
-        }
-      }
-    } catch {}
-  }
-
-  // Last fallback: CoinGecko trending
-  if (allArticles.length === 0) {
-    try {
-      const res = await fetch("https://api.coingecko.com/api/v3/search/trending");
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.coins?.length > 0) {
-          allArticles = data.coins.slice(0, 8).map(c => {
-            const coin = c.item;
-            const change = coin.data?.price_change_percentage_24h?.usd || 0;
-            return {
-              t: `${coin.name} (${coin.symbol}) trending — ${change >= 0 ? "+" : ""}${change.toFixed(1)}% en 24h`,
-              i: change > 2 ? "bullish" : change < -2 ? "bearish" : "neutral",
-              coins: [coin.symbol?.toUpperCase()],
-              date: formatDate(new Date().toISOString()),
-              time: formatTime(new Date().toISOString()),
-              ago: "ahora",
-              source: "CoinGecko",
-              priority: 3,
-              ts: now,
-            };
-          });
-        }
-      }
-    } catch {}
-  }
-
-  if (allArticles.length === 0) return null;
-
-  // Deduplicate by title similarity
-  const seen = new Set();
-  allArticles = allArticles.filter(a => {
-    const key = a.t.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  // Filter to last 7 days and only crypto-relevant (score > 0)
-  const weekArticles = allArticles.filter(a => a.ts >= oneWeekAgo && (a.score || 0) >= 0);
-  const todayArticles = weekArticles.filter(a => a.ts >= oneDayAgo);
-
-  // TOP NOTICIAS DE LA SEMANA: highest impact score across ALL 7 days
-  const weeklyTop = [...weekArticles]
-    .sort((a, b) => (b.score || 0) - (a.score || 0) || (b.ts - a.ts))
-    .slice(0, 6);
-
-  // NOTICIAS DE HOY: today's news not already in weekly, sorted by impact then recency
-  const weeklyUrls = new Set(weeklyTop.map(a => a.url));
-  const dailyNews = todayArticles
-    .filter(a => !weeklyUrls.has(a.url))
-    .sort((a, b) => (b.score || 0) - (a.score || 0) || (b.ts - a.ts))
-    .slice(0, 5);
-
-  // Determine primary source
-  const sources = new Set(allArticles.map(a => a.source));
-  const sourceStr = [...sources].slice(0, 3).join(" · ");
-
-  return {
-    top: weeklyTop,
-    other: dailyNews,
-    week: getWeekRange(),
-    source: sourceStr,
-    lastUpdate: new Date().toISOString(),
-  };
-}
-
 export default function CryptoNews({ livePrices, marketData }) {
-  const [news, setNews] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Arrancamos con lo que haya en caché: la tarjeta se pinta al instante y el
+  // fetch de red solo la actualiza.
+  const [articles, setArticles] = useState(() => readCache()?.articles || null);
+  const [fetchedAt, setFetchedAt] = useState(() => readCache()?.fetchedAt || null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // Reloj que avanza cada minuto: mantiene ciertos los "hace 2h" y el corte
+  // semana/hoy sin volver a pedir datos.
+  const [now, setNow] = useState(() => Date.now());
+
+  // { títuloOriginal: títuloEnEspañol } para las fuentes en inglés.
+  const [translations, setTranslations] = useState({});
+
+  const inFlight = useRef(false);
 
   const loadNews = useCallback(async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
-    const data = await fetchCryptoNews();
-    if (data) setNews(data);
-    setLoading(false);
+    try {
+      const result = await fetchCryptoNews();
+      if (result?.articles?.length) {
+        setArticles(result.articles);
+        setFetchedAt(result.fetchedAt);
+        setFailed(result.stale);
+      } else {
+        setFailed(true);
+      }
+    } catch {
+      setFailed(true);
+    } finally {
+      inFlight.current = false;
+      setLoading(false);
+    }
   }, []);
 
+  // Carga inicial + refresco periódico
   useEffect(() => {
     loadNews();
-    const interval = setInterval(loadNews, 5 * 60 * 1000);
+    const interval = setInterval(loadNews, REFRESH_MS);
     return () => clearInterval(interval);
   }, [loadNews]);
 
-  const updated = new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+  // Reloj de 1 minuto: mantiene vivos los "hace X" y detecta el cambio de día.
+  useEffect(() => {
+    let lastDay = new Date().getDate();
+    const id = setInterval(() => {
+      setNow(Date.now());
+      const today = new Date().getDate();
+      if (today !== lastDay) {
+        // Cruzamos la medianoche: "NOTICIAS DE HOY" debe repoblarse.
+        lastDay = today;
+        loadNews();
+      }
+    }, 60 * 1000);
+    return () => clearInterval(id);
+  }, [loadNews]);
+
+  // Al volver a la pestaña, refrescamos si los datos ya están viejos. Sin esto
+  // un portátil que estuvo suspendido mostraba noticias de días atrás.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!fetchedAt || Date.now() - fetchedAt > REFRESH_MS) loadNews();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", loadNews);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", loadNews);
+    };
+  }, [fetchedAt, loadNews]);
+
+  const news = useMemo(() => buildSections(articles, now), [articles, now]);
+
+  // Traduce los titulares en inglés que estén a la vista. Solo los visibles
+  // (~11), no los 160 descargados, y una vez cada uno gracias a la caché.
+  useEffect(() => {
+    if (!news) return;
+    const pending = [...news.top, ...news.other]
+      .filter((a) => a.lang !== "es" && !a.es && !translations[a.t] && !getCachedTranslation(a.t))
+      .map((a) => a.t);
+    if (!pending.length) return;
+
+    let cancelled = false;
+    translateBatch(pending).then((map) => {
+      if (!cancelled && Object.keys(map).length) {
+        setTranslations((prev) => ({ ...prev, ...map }));
+      }
+    });
+    return () => { cancelled = true; };
+    // `translations` queda fuera de las deps a propósito: se actualiza dentro
+    // del propio efecto e incluirlo lo re-dispararía en bucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [news]);
+
+  // Sustituye cada titular por su versión en español cuando exista. `a.es` es
+  // la traducción que ya viene hecha en el JSON pre-generado.
+  const localized = useMemo(() => {
+    if (!news) return null;
+    const toEs = (a) => ({
+      ...a,
+      display: a.es || translations[a.t] || getCachedTranslation(a.t) || a.t,
+    });
+    return { ...news, top: news.top.map(toEs), other: news.other.map(toEs) };
+  }, [news, translations]);
+
+  const updated = fetchedAt
+    ? new Date(fetchedAt).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
+    : "—";
+  const isStale = fetchedAt ? now - fetchedAt > REFRESH_MS * 2 : true;
 
   return (
     <div className="card rounded-2xl overflow-hidden flex flex-col h-full">
@@ -477,13 +251,16 @@ export default function CryptoNews({ livePrices, marketData }) {
             <h3 className="text-sm font-black text-gray-200 tracking-tight">Crypto Weekly</h3>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={loadNews} className="p-1 rounded hover:bg-white/5 transition-colors text-gray-600 hover:text-gray-400" title="Actualizar noticias">
+            <button onClick={loadNews} disabled={loading}
+              className="p-1 rounded hover:bg-white/5 transition-colors text-gray-600 hover:text-gray-400 disabled:opacity-50"
+              title="Actualizar noticias">
               <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
             </button>
-            <span className="text-[9px] text-gray-600 font-mono flex items-center gap-1">
+            <span className="text-[9px] text-gray-600 font-mono flex items-center gap-1" title="Última actualización">
               <Clock size={9} /> {updated}
             </span>
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div className={`w-1.5 h-1.5 rounded-full ${isStale ? "bg-amber-500" : "bg-emerald-400 animate-pulse"}`}
+              title={isStale ? "Datos sin refrescar" : "Al día"} />
           </div>
         </div>
 
@@ -491,11 +268,12 @@ export default function CryptoNews({ livePrices, marketData }) {
         <div className="flex items-center justify-between mb-3">
           <span className="text-[9px] text-gray-600 font-mono tracking-wider">{news?.week || "---"}</span>
           {news?.source && (
-            <span className="text-[7px] text-gray-700 font-mono truncate ml-2 max-w-[160px]">{news.source}</span>
+            <span className="text-[7px] text-gray-700 font-mono truncate ml-2 max-w-[160px]" title={`${news.sourceCount} fuentes`}>
+              {news.source}
+            </span>
           )}
         </div>
 
-        {/* Live Price Ticker */}
         <PriceTicker livePrices={livePrices} marketData={marketData} />
 
         <div className="h-px mb-3" style={{ background: "linear-gradient(90deg, #7c3aed15, #ffffff08, transparent)" }} />
@@ -515,29 +293,42 @@ export default function CryptoNews({ livePrices, marketData }) {
                 </div>
               ))}
             </div>
-          ) : news ? (
+          ) : localized ? (
             <>
-              {news.top.length > 0 && (
+              {localized.top.length > 0 && (
                 <>
-                  <div className="text-[8px] font-black tracking-[3px] text-amber-400/50 mb-1">TOP NOTICIAS DE LA SEMANA</div>
-                  {news.top.map((d, i) => (
-                    <NewsRow key={d.url || `top-${i}`} d={d} isTop delay={i * 0.05} />
+                  <div className="flex items-baseline justify-between mb-1">
+                    <span className="text-[8px] font-black tracking-[3px] text-amber-400/50">TOP NOTICIAS DE LA SEMANA</span>
+                    <span className="text-[7px] text-gray-700 font-mono">POR IMPACTO</span>
+                  </div>
+                  {localized.top.map((d, i) => (
+                    <NewsRow key={d.url || `top-${i}`} d={d} rank={i + 1} isTop delay={i * 0.05} />
                   ))}
                 </>
               )}
 
-              {news.other.length > 0 && (
+              {localized.other.length > 0 && (
                 <>
                   <div className="h-px my-2" style={{ background: "linear-gradient(90deg, transparent, #7c3aed15, transparent)" }} />
-                  <div className="text-[8px] font-black tracking-[3px] text-purple-400/40 mb-1">NOTICIAS DE HOY</div>
-                  {news.other.map((d, i) => (
-                    <NewsRow key={d.url || `other-${i}`} d={d} isTop={false} delay={(i + 3) * 0.05} />
+                  <div className="flex items-baseline justify-between mb-1">
+                    <span className="text-[8px] font-black tracking-[3px] text-purple-400/40">NOTICIAS DE HOY</span>
+                    <span className="text-[7px] text-gray-700 font-mono">POR IMPACTO</span>
+                  </div>
+                  {localized.other.map((d, i) => (
+                    <NewsRow key={d.url || `other-${i}`} d={d} rank={i + 1} isTop={false} delay={(i + 3) * 0.05} />
                   ))}
                 </>
               )}
             </>
           ) : (
-            <div className="text-center py-6 text-gray-600 text-xs">Sin noticias disponibles</div>
+            <div className="text-center py-6 text-gray-600 text-xs">
+              {loading ? "Buscando noticias…" : "Sin noticias disponibles"}
+              {failed && !loading && (
+                <button onClick={loadNews} className="block mx-auto mt-2 text-[10px] text-purple-400/70 hover:text-purple-300 underline">
+                  Reintentar
+                </button>
+              )}
+            </div>
           )}
         </div>
 

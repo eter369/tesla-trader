@@ -3,6 +3,13 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
+  # Refresco diario de las noticias. GitHub Pages sirve ficheros estáticos, así
+  # que la única forma de que el contenido envejezca bien es volver a construir:
+  # cada ejecución descarga los RSS y regenera public/news.json.
+  schedule:
+    - cron: "0 9 * * *" # 09:00 UTC — 04:00 en Lima, 11:00 en Madrid
+  # Permite lanzarlo a mano desde la pestaña Actions.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,6 +30,13 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Descarga los RSS desde el runner (sin CORS ni proxies) y escribe
+      # public/news.json, que Vite copiará a dist. Si todas las fuentes fallan
+      # el paso devuelve error, pero no debe tumbar el despliegue: se publica
+      # con el news.json que haya en el repo.
+      - name: Generar noticias
+        run: node scripts/fetch-news.mjs
+        continue-on-error: true
       - run: npm run build
       # SPA fallback for GitHub Pages: any unknown route serves index.html
       # so client-side routing (e.g. /biblioteca/) works on direct hits/refresh.
