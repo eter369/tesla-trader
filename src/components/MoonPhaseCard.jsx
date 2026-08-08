@@ -1,6 +1,7 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import AnimatedMoon from "./AnimatedMoon";
 import MysticPortal from "./MysticPortal";
+import PortalLogin from "./PortalLogin";
 
 // Phase-driven background gradients for the card. Each phase gets its own
 // ambient color so the card visually "breathes" with the lunar cycle.
@@ -169,6 +170,8 @@ export default function MoonPhaseCard({
   nextFullMoon,
   signal,
 }) {
+  const [loginOpen, setLoginOpen] = useState(false);
+
   // Navigate to dedicated Bibliotheca page (clean URL, full-page experience).
   const goToBiblioteca = useCallback(() => {
     const target = "/biblioteca/";
@@ -178,6 +181,16 @@ export default function MoonPhaseCard({
       window.scrollTo(0, 0);
     }
   }, []);
+
+  // El portal pide credenciales cada vez: no hay sesión que recordar.
+  const handlePortalEnter = useCallback(() => setLoginOpen(true), []);
+
+  const handleLoginSuccess = useCallback(() => {
+    setLoginOpen(false);
+    goToBiblioteca();
+  }, [goToBiblioteca]);
+
+  const handleLoginClose = useCallback(() => setLoginOpen(false), []);
 
   const theme = useMemo(() => getPhaseTheme(moonPhase), [moonPhase]);
   const bias = useMemo(() => getBiasMeta(signal, lunarInfo), [signal, lunarInfo]);
@@ -202,6 +215,8 @@ export default function MoonPhaseCard({
         transition: "background 1.2s ease, border-color 1.2s ease, box-shadow 1.2s ease",
       }}
     >
+      <PortalLogin open={loginOpen} onClose={handleLoginClose} onSuccess={handleLoginSuccess} />
+
       {/* Portal Místico — esquina superior derecha como sello flotante.
           Posicionado absoluto para no robar espacio vertical al moon. */}
       <div className="absolute top-3 right-3" style={{ width: 64, height: 64, zIndex: 5 }}>
@@ -224,7 +239,7 @@ export default function MoonPhaseCard({
           className="absolute inset-0"
           style={{ zIndex: 2, animation: "portalGlowPulse 4s ease-in-out infinite" }}
         >
-          <MysticPortal compact displaySize={64} onEnter={goToBiblioteca} />
+          <MysticPortal compact displaySize={64} onEnter={handlePortalEnter} />
         </div>
       </div>
 

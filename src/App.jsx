@@ -22,6 +22,8 @@ import CenterVideo from "./components/CenterVideo";
 import Footer from "./components/Footer";
 import AmbientMusic from "./components/AmbientMusic";
 import BibliotecaPage from "./components/BibliotecaPage";
+import PortalLogin from "./components/PortalLogin";
+import { hasFreshUnlock } from "./utils/portalAuth";
 
 const CRYPTO_META = {
   bitcoin: { symbol: "BTC", name: "Bitcoin", color: "#f7931a", icon: "B" },
@@ -120,10 +122,26 @@ function isBibliotecaPath(p) {
   return /^\/biblioteca\/?$/i.test(p || "");
 }
 
+// Entrar por URL directa a /biblioteca/ no debe saltarse el portal: pedimos la
+// clave y volvemos al dashboard si el visitante cierra la puerta. La única
+// excepción es venir de validarla hace un instante en el orbe — si no,
+// preguntaría dos veces seguidas en el mismo trayecto.
+function BibliotecaGate() {
+  const [unlocked, setUnlocked] = useState(hasFreshUnlock);
+
+  const goHome = () => {
+    window.history.pushState({}, "", "/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  if (unlocked) return <BibliotecaPage />;
+  return <PortalLogin open onClose={goHome} onSuccess={() => setUnlocked(true)} />;
+}
+
 export default function App() {
   const pathname = usePathname();
   if (isBibliotecaPath(pathname)) {
-    return <BibliotecaPage />;
+    return <BibliotecaGate />;
   }
   return <Dashboard />;
 }
