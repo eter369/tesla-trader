@@ -1,5 +1,5 @@
 {
-  "name": "temp-init",
+  "name": "tesla-369",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,8 @@
     "news": "node scripts/fetch-news.mjs",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verificar-lunas": "node scripts/verificar-lunas.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",

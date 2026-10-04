@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Wallet, Plus, X } from "lucide-react";
-import { formatPrice, formatChange } from "../utils/format";
+import { formatPrice, formatChange, numero } from "../utils/format";
 
 const CRYPTOS = {
   bitcoin: { symbol: "BTC", color: "#f7931a", icon: "₿" },
@@ -46,11 +46,11 @@ export default function PortfolioSimulator({ livePrices, marketData }) {
   return (
     <div className="card rounded-2xl p-4 mb-5">
       <h3 className="text-xs font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
-        <Wallet size={14} className="text-amber-400" /> Simulador de Portfolio
+        <Wallet size={14} className="text-amber-400" /> Simulador de portafolio
         {hasHoldings && (
           <span className="ml-auto text-emerald-400/60 flex items-center gap-1">
             <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-            LIVE
+            EN VIVO
           </span>
         )}
       </h3>
@@ -59,7 +59,7 @@ export default function PortfolioSimulator({ livePrices, marketData }) {
         <div className="text-center mb-4 p-3 rounded-xl bg-gray-900/40 border border-gray-800/30">
           <div className="text-2xl font-black tabular-nums">{formatPrice(portfolio.total)}</div>
           <div className={`text-sm font-bold ${portfolio.totalChangePercent >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-            {formatChange(portfolio.totalChangePercent)} ({portfolio.totalChange >= 0 ? "+" : ""}{formatPrice(Math.abs(portfolio.totalChange))})
+            {formatChange(portfolio.totalChangePercent)} ({portfolio.totalChange >= 0 ? "+" : "-"}{formatPrice(Math.abs(portfolio.totalChange))}) en 24 h
           </div>
         </div>
       )}
@@ -76,6 +76,7 @@ export default function PortfolioSimulator({ livePrices, marketData }) {
                 step="any"
                 min="0"
                 autoFocus
+                aria-label={`Cantidad de ${item.symbol}`}
                 className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-amber-400/50"
                 defaultValue={item.amount || ""}
                 placeholder="0.00"
@@ -90,11 +91,12 @@ export default function PortfolioSimulator({ livePrices, marketData }) {
               />
             ) : (
               <button
+                type="button"
                 onClick={() => setEditing(item.id)}
                 className="flex-1 text-left text-xs text-gray-400 hover:text-amber-400 transition-colors"
               >
                 {item.amount > 0 ? (
-                  <span className="text-white font-semibold">{item.amount} {item.symbol}</span>
+                  <span className="text-white font-semibold">{numero(item.amount, item.amount < 1 ? 4 : 2)} {item.symbol}</span>
                 ) : (
                   <span className="flex items-center gap-1"><Plus size={10} /> Agregar</span>
                 )}
@@ -116,6 +118,8 @@ export default function PortfolioSimulator({ livePrices, marketData }) {
 
             {item.amount > 0 && (
               <button
+                type="button"
+                aria-label={`Quitar ${item.symbol}`}
                 onClick={() => saveHoldings({ ...holdings, [item.id]: 0 })}
                 className="p-1 rounded hover:bg-red-500/10 text-gray-600 hover:text-red-400 transition-colors"
               >

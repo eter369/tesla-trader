@@ -1,15 +1,22 @@
 import { useRef, useEffect, useState } from "react";
 import Hls from "hls.js";
+import { sinVideosDecorativos } from "../utils/medios";
 
 const HLS_URL = "https://stream.mux.com/NcU3HlHeF7CUL86azTTzpy3Tlb00d6iF3BmCdFslMJYM.m3u8";
 
 export default function BackgroundVideo() {
   const videoRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
+  const [conVideo] = useState(() => !sinVideosDecorativos());
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!conVideo || !video) return;
+    const alCambiarVisibilidad = () => {
+      if (document.hidden) video.pause();
+      else video.play().catch(() => {});
+    };
+    document.addEventListener("visibilitychange", alCambiarVisibilidad);
 
     let hls;
 
@@ -36,26 +43,32 @@ export default function BackgroundVideo() {
     }
 
     return () => {
+      document.removeEventListener("visibilitychange", alCambiarVisibilidad);
       if (hls) {
         hls.destroy();
       }
     };
-  }, []);
+  }, [conVideo]);
 
   return (
     <div
       className="fixed inset-0 z-0 transition-opacity duration-[2000ms]"
-      style={{ opacity: loaded ? 1 : 0 }}
+      style={{ opacity: loaded || !conVideo ? 1 : 0 }}
+      aria-hidden="true"
     >
-      {/* Video */}
-      <video
-        ref={videoRef}
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "saturate(0.6) brightness(0.35)" }}
-      />
+      {conVideo ? (
+        <video
+          ref={videoRef}
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ filter: "saturate(0.6) brightness(0.35)" }}
+        />
+      ) : (
+        // Sin video: el mismo tono violeta cósmico con un degradado quieto
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 30% 20%, rgba(88,28,135,0.45), transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(30,27,75,0.6), transparent 65%)" }} />
+      )}
 
       {/* Dark overlay layers for depth */}
       <div className="absolute inset-0" style={{

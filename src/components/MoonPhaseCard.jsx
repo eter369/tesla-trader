@@ -2,6 +2,12 @@ import { useCallback, useMemo, useState } from "react";
 import AnimatedMoon from "./AnimatedMoon";
 import MysticPortal from "./MysticPortal";
 import PortalLogin from "./PortalLogin";
+import { fechaLima } from "../utils/lunar";
+import { numero } from "../utils/format";
+
+// "sáb 10 oct, 10:49" en hora de Lima
+const fechaHoraLima = (d) =>
+  fechaLima(d.getTime(), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).replace(/\./g, "");
 
 // Phase-driven background gradients for the card. Each phase gets its own
 // ambient color so the card visually "breathes" with the lunar cycle.
@@ -40,10 +46,10 @@ function getBiasMeta(signal, lunarInfo) {
   const fallback = { value: 0.5, color: lunarInfo?.color || "#a78bfa", label: "NEUTRAL" };
   if (!signal) return fallback;
   const map = {
-    "ACUMULAR":         { value: 0.92, color: "#10b981", label: "BULLISH FUERTE" },
+    "ACUMULAR":         { value: 0.92, color: "#10b981", label: "ALCISTA FUERTE" },
     "ESPERAR":          { value: 0.55, color: "#22d3ee", label: "MIXTO" },
     "PRECAUCIÓN":       { value: 0.40, color: "#f59e0b", label: "CAUTELA" },
-    "TOMAR GANANCIAS":  { value: 0.18, color: "#ef4444", label: "BEARISH" },
+    "TOMAR GANANCIAS":  { value: 0.18, color: "#ef4444", label: "BAJISTA" },
   };
   return map[signal.action] || fallback;
 }
@@ -51,20 +57,20 @@ function getBiasMeta(signal, lunarInfo) {
 function formatCountdown(days) {
   if (days < 0) return "ahora";
   const totalHours = Math.round(days * 24);
-  if (totalHours < 1) return "<1h";
-  if (totalHours < 24) return `${totalHours}h`;
+  if (totalHours < 1) return "< 1 h";
+  if (totalHours < 24) return `${totalHours} h`;
   const d = Math.floor(totalHours / 24);
   const h = totalHours % 24;
-  if (h === 0) return `${d}d`;
-  return `${d}d ${h}h`;
+  if (h === 0) return `${d} d`;
+  return `${d} d ${h} h`;
 }
 
 // Cycle timeline: 5 anchor positions (new → 1Q → full → 3Q → new)
 const TIMELINE_ANCHORS = [
   { fraction: 0,    icon: "🌑", label: "Nueva" },
-  { fraction: 0.25, icon: "🌓", label: "1ºC" },
+  { fraction: 0.25, icon: "🌓", label: "C. creciente" },
   { fraction: 0.5,  icon: "🌕", label: "Llena" },
-  { fraction: 0.75, icon: "🌗", label: "1ºM" },
+  { fraction: 0.75, icon: "🌗", label: "C. menguante" },
   { fraction: 1,    icon: "🌑", label: "Nueva" },
 ];
 
@@ -161,7 +167,7 @@ function BiasRing({ size, value, color }) {
 export default function MoonPhaseCard({
   moonPhase,
   lunarInfo,
-  nextPhaseDate, // eslint-disable-line no-unused-vars -- kept for prop compatibility
+  illumination,
   detailedPhase,
   lunarAge,
   synodicMonth,
@@ -200,7 +206,7 @@ export default function MoonPhaseCard({
 
   // Lunar age display
   const ageDays = lunarAge ?? 0;
-  const cyclePct = ((moonPhase % 1) * 100).toFixed(0);
+  const cyclePct = numero((moonPhase % 1) * 100);
 
   // Countdown to next major phase (1Q / Full / 3Q / New)
   const countdown = nextMajorPhase ? formatCountdown(nextMajorPhase.daysFromNow) : null;
@@ -219,7 +225,7 @@ export default function MoonPhaseCard({
 
       {/* Portal Místico — esquina superior derecha como sello flotante.
           Posicionado absoluto para no robar espacio vertical al moon. */}
-      <div className="absolute top-3 right-3" style={{ width: 64, height: 64, zIndex: 5 }}>
+      <div className="portal-sello absolute top-3 right-3" style={{ width: 64, height: 64, zIndex: 5 }}>
         {/* Halo contenido dentro del bounding box del sello */}
         <div
           className="absolute top-1/2 left-1/2 pointer-events-none"
@@ -245,14 +251,14 @@ export default function MoonPhaseCard({
 
       {/* Eyebrow sobre la luna */}
       <div className="text-[9px] tracking-[0.32em] uppercase text-amber-400/50 font-bold mb-1 mt-1">
-        Fase Lunar
+        Fase lunar
       </div>
 
       {/* Moon + bias ring gauge — pieza central */}
       <div className="relative animate-float" style={{ width: 190, height: 190 }}>
         <BiasRing size={190} value={bias.value} color={bias.color} />
         <div className="absolute top-1/2 left-1/2" style={{ transform: "translate(-50%, -50%)" }}>
-          <AnimatedMoon phase={moonPhase} size={165} />
+          <AnimatedMoon phase={moonPhase} size={165} illuminationPct={illumination} />
         </div>
       </div>
 
@@ -284,9 +290,9 @@ export default function MoonPhaseCard({
         <div className="rounded-lg px-3 py-2 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
           <div className="text-[9px] tracking-[0.18em] uppercase text-gray-500 font-semibold">Edad lunar</div>
           <div className="text-sm font-black text-amber-300 tabular-nums mt-0.5">
-            {ageDays.toFixed(1)}<span className="text-gray-600 text-[10px] font-normal"> / {synodicMonth?.toFixed(1) || "29.5"}d</span>
+            {numero(ageDays, 1)}<span className="text-gray-500 text-[10px] font-normal"> / {numero(synodicMonth ?? 29.53, 1)} días</span>
           </div>
-          <div className="text-[8px] text-gray-600 mt-0.5 tabular-nums">{cyclePct}% del ciclo</div>
+          <div className="text-[8px] text-gray-500 mt-0.5 tabular-nums">{cyclePct} % del ciclo</div>
         </div>
         {nextMajorPhase && (
           <div className="rounded-lg px-3 py-2 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
@@ -294,7 +300,7 @@ export default function MoonPhaseCard({
             <div className="text-sm font-black text-amber-300 tabular-nums mt-0.5 leading-none">
               {countdown}
             </div>
-            <div className="text-[8px] text-gray-600 mt-0.5 truncate">
+            <div className="text-[8px] text-gray-600 mt-0.5 truncate" title={fechaHoraLima(nextMajorPhase.date) + " (hora de Lima)"}>
               {nextMajorPhase.phase.icon} {nextMajorPhase.phase.name}
             </div>
           </div>
@@ -310,20 +316,20 @@ export default function MoonPhaseCard({
 
       {/* Próximas lunas — fechas astronómicas precisas (no límites de bucket) */}
       {(nextNewMoon || nextFullMoon) && (
-        <div className="mt-3 pt-3 border-t border-gray-800/50 w-full grid grid-cols-2 gap-2 text-center">
+        <div className="mt-3 pt-3 border-t border-gray-800/50 w-full grid grid-cols-2 gap-2 text-center" title="Fechas astronómicas en hora de Lima">
           {nextNewMoon && (
             <div>
-              <div className="text-[8px] tracking-[0.2em] uppercase text-gray-600 font-semibold">Luna Nueva</div>
+              <div className="text-[8px] tracking-[0.2em] uppercase text-gray-500 font-semibold">Próxima luna nueva</div>
               <p className="text-gray-400 text-[10px] tracking-wider mt-0.5">
-                🌑 {nextNewMoon.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" })}
+                🌑 {fechaHoraLima(nextNewMoon)}
               </p>
             </div>
           )}
           {nextFullMoon && (
             <div>
-              <div className="text-[8px] tracking-[0.2em] uppercase text-gray-600 font-semibold">Luna Llena</div>
+              <div className="text-[8px] tracking-[0.2em] uppercase text-gray-500 font-semibold">Próxima luna llena</div>
               <p className="text-gray-400 text-[10px] tracking-wider mt-0.5">
-                🌕 {nextFullMoon.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" })}
+                🌕 {fechaHoraLima(nextFullMoon)}
               </p>
             </div>
           )}

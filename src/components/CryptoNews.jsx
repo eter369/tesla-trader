@@ -11,6 +11,8 @@ import {
   REFRESH_MS,
 } from "../utils/cryptoNews";
 import { translateBatch, getCachedTranslation } from "../utils/translate";
+import { formatPrice, formatChange } from "../utils/format";
+import { fechaLima, diaLima } from "../utils/lunar";
 
 const IMPACT = {
   bullish: { color: "#10b981", arrow: "↑" },
@@ -32,12 +34,6 @@ function PriceTicker({ livePrices, marketData }) {
     });
   }, [livePrices, marketData]);
 
-  const formatPrice = (p) => {
-    if (p >= 1000) return "$" + p.toLocaleString("en-US", { maximumFractionDigits: 0 });
-    if (p >= 1) return "$" + p.toFixed(2);
-    return "$" + p.toFixed(4);
-  };
-
   return (
     <div className="grid grid-cols-3 gap-1.5 mb-3">
       {tickers.map((t) => (
@@ -46,7 +42,7 @@ function PriceTicker({ livePrices, marketData }) {
           <div className="text-[10px] font-bold text-gray-400 tracking-wider">{t.symbol}</div>
           <div className="text-xs font-black text-gray-200 tabular-nums mt-0.5">{formatPrice(t.price)}</div>
           <div className="text-[10px] font-bold tabular-nums mt-0.5" style={{ color: t.up ? "#10b981" : "#ef4444" }}>
-            {t.up ? "↑" : "↓"} {t.up ? "+" : ""}{t.change.toFixed(1)}%
+            {t.up ? "↑" : "↓"} {formatChange(t.change, 1)}
           </div>
         </div>
       ))}
@@ -172,10 +168,10 @@ export default function CryptoNews({ livePrices, marketData }) {
 
   // Reloj de 1 minuto: mantiene vivos los "hace X" y detecta el cambio de día.
   useEffect(() => {
-    let lastDay = new Date().getDate();
+    let lastDay = diaLima(Date.now());
     const id = setInterval(() => {
       setNow(Date.now());
-      const today = new Date().getDate();
+      const today = diaLima(Date.now());
       if (today !== lastDay) {
         // Cruzamos la medianoche: "NOTICIAS DE HOY" debe repoblarse.
         lastDay = today;
@@ -235,7 +231,7 @@ export default function CryptoNews({ livePrices, marketData }) {
   }, [news, translations]);
 
   const updated = fetchedAt
-    ? new Date(fetchedAt).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })
+    ? fechaLima(fetchedAt, { hour: "2-digit", minute: "2-digit", hour12: false })
     : "—";
   const isStale = fetchedAt ? now - fetchedAt > REFRESH_MS * 2 : true;
 
@@ -248,7 +244,7 @@ export default function CryptoNews({ livePrices, marketData }) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Newspaper size={14} className="text-purple-400" />
-            <h3 className="text-sm font-black text-gray-200 tracking-tight">Crypto Weekly</h3>
+            <h3 className="text-sm font-black text-gray-200 tracking-tight">Cripto Semanal</h3>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={loadNews} disabled={loading}
@@ -298,7 +294,7 @@ export default function CryptoNews({ livePrices, marketData }) {
               {localized.top.length > 0 && (
                 <>
                   <div className="flex items-baseline justify-between mb-1">
-                    <span className="text-[8px] font-black tracking-[3px] text-amber-400/50">TOP NOTICIAS DE LA SEMANA</span>
+                    <span className="text-[8px] font-black tracking-[3px] text-amber-400/50">LO MÁS IMPORTANTE DE LA SEMANA</span>
                     <span className="text-[7px] text-gray-700 font-mono">POR IMPACTO</span>
                   </div>
                   {localized.top.map((d, i) => (
@@ -335,7 +331,7 @@ export default function CryptoNews({ livePrices, marketData }) {
         {/* Footer */}
         <div className="pt-3 mt-auto border-t border-gray-800/20 text-center">
           <span className="text-[8px] text-gray-700 font-mono tracking-[2px]">
-            CRYPTO WEEKLY · {new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }).toUpperCase()}
+            CRIPTO SEMANAL · {fechaLima(Date.now(), { day: "numeric", month: "short", year: "numeric" }).replace(".", "").toUpperCase()}
           </span>
         </div>
       </div>

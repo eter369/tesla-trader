@@ -169,20 +169,27 @@ export function formatTimeAgo(ts) {
   if (!ts) return "—";
   const diff = Math.floor((Date.now() - ts) / 1000);
   if (diff < 60) return "ahora";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} h`;
+  return `${Math.floor(diff / 86400)} d`;
+}
+
+// Día, mes y año en hora de Lima (sirve igual en el navegador y en Node)
+const FORMATO_LIMA = new Intl.DateTimeFormat("en-US", { timeZone: "America/Lima", year: "numeric", month: "numeric", day: "numeric" });
+function partesLima(ms) {
+  const p = Object.fromEntries(FORMATO_LIMA.formatToParts(ms).map((x) => [x.type, x.value]));
+  return { dia: +p.day, mes: +p.month - 1, anio: +p.year };
 }
 
 export function formatDate(ts) {
   const d = safeDate(ts);
   if (!d) return "—";
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  const { dia, mes } = partesLima(d.getTime());
+  return `${dia} ${MONTHS[mes]}`;
 }
 
 export function getWeekRange() {
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() - 6);
-  return `${start.getDate()} ${MONTHS[start.getMonth()]} - ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  const ahora = Date.now();
+  const a = partesLima(ahora - 6 * 864e5), b = partesLima(ahora);
+  return `${a.dia} ${MONTHS[a.mes]} - ${b.dia} ${MONTHS[b.mes]} ${b.anio}`;
 }

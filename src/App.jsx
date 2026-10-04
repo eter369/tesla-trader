@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { useMoonPhase } from "./hooks/useMoonPhase";
 import { useWebSocket } from "./hooks/useWebSocket";
-import { useCryptoData } from "./hooks/useCryptoData";
-import { calculateRSI, calculateMACD, calculateBollingerBands } from "./utils/indicators";
-import { calculateLunarSentiment, generateSignal } from "./utils/lunar";
+import { useCryptoData, SIMBOLO_BINANCE } from "./hooks/useCryptoData";
+import { useSenalHoraria } from "./hooks/useSenalHoraria";
+import { calculateLunarSentiment } from "./utils/lunar";
 import Header from "./components/Header";
 import QuoteBanner from "./components/QuoteBanner";
 import MoonPhaseCard from "./components/MoonPhaseCard";
@@ -14,7 +14,7 @@ import LunarCalendar from "./components/LunarCalendar";
 import PortfolioSimulator from "./components/PortfolioSimulator";
 import ChartSection from "./components/ChartSection";
 import MasterSecret from "./components/MasterSecret";
-import LunarCalendar2026 from "./components/LunarCalendar2026";
+import LunarCalendarAnual from "./components/LunarCalendarAnual";
 import CryptoNews from "./components/CryptoNews";
 import GlobalMetrics from "./components/GlobalMetrics";
 import BackgroundVideo from "./components/BackgroundVideo";
@@ -47,19 +47,26 @@ function useIsXl() {
   return isXl;
 }
 
-// Starfield background
+// Cielo de estrellas: posiciones pseudoaleatorias fijas (el mismo cielo en cada visita)
+function azar(semilla) {
+  let s = semilla;
+  return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+}
+const ESTRELLAS = (() => {
+  const r = azar(369);
+  return Array.from({ length: 80 }, (_, i) => ({
+    id: i,
+    width: r() * 2 + 0.5,
+    left: r() * 100,
+    top: r() * 100,
+    opacity: r() * 0.4 + 0.05,
+    duration: 2 + r() * 5,
+    delay: r() * 4,
+  }));
+})();
+
 function Starfield() {
-  const stars = useMemo(() =>
-    Array.from({ length: 80 }, (_, i) => ({
-      id: i,
-      width: Math.random() * 2 + 0.5,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      opacity: Math.random() * 0.4 + 0.05,
-      duration: 2 + Math.random() * 5,
-      delay: Math.random() * 4,
-    }))
-  , []);
+  const stars = ESTRELLAS;
 
   return (
     <div className="starfield">
@@ -88,8 +95,8 @@ function LoadingSkeleton() {
     <div className="min-h-screen app-bg flex items-center justify-center">
       <div className="text-center">
         <div className="text-7xl mb-6 animate-float">🌙</div>
-        <div className="text-xl font-bold gold-text mb-2">Conectando con los ciclos lunares...</div>
-        <div className="text-sm text-gray-500">Cargando datos del mercado crypto</div>
+        <div className="text-xl font-bold gold-text mb-2" role="status">Conectando con los ciclos lunares…</div>
+        <div className="text-sm text-gray-500">Cargando datos del mercado cripto</div>
         <div className="flex gap-2 justify-center mt-6">
           {[0, 1, 2].map(i => (
             <div
@@ -152,7 +159,6 @@ function Dashboard() {
     moonPhase,
     lunarInfo,
     illumination,
-    nextPhaseDate,
     lunarCalendar,
     detailedPhase,
     lunarAge,
@@ -175,36 +181,25 @@ function Dashboard() {
   const [fearGreed, setFearGreed] = useState(null);
   const isXl = useIsXl();
 
-  const { marketData, priceHistory, loading, error, refetch } = useCryptoData(timeRange);
+  const { marketData, priceHistory, loading, error, lastFetch, refetch } = useCryptoData(timeRange);
 
-  // Compute indicators at the App level to avoid setState-during-render
-  const indicators = useMemo(() => {
-    const hist = priceHistory[selectedCrypto];
-    if (!hist?.prices) return null;
-    const prices = hist.prices.map(p => p[1]);
-    const rsi = calculateRSI(prices);
-    const macd = calculateMACD(prices);
-    const bollinger = calculateBollingerBands(prices);
-    const currentRSI = rsi.length > 0 ? rsi[rsi.length - 1].value : 50;
-    const currentMACD = macd.length > 0 ? macd[macd.length - 1] : { macd: 0, signal: 0, histogram: 0 };
+  // La señal y el sentimiento usan siempre velas de 1 h, sin importar el rango del gráfico
+  const { senal, analisis, error: errorSenal } = useSenalHoraria(SIMBOLO_BINANCE[selectedCrypto], lunarInfo);
+  const sentiment = useMemo(
+    () => (analisis ? calculateLunarSentiment(moonPhase, analisis.rsi, analisis.volumenVs7d) : null),
+    [analisis, moonPhase],
+  );
 
-    const coin = marketData[selectedCrypto];
-    const priceChange = coin?.price_change_percentage_24h || 0;
-    const volChange = coin ? ((coin.total_volume / (coin.market_cap * 0.02)) - 1) * 100 : 0;
-
-    const sentiment = calculateLunarSentiment(moonPhase, currentRSI, volChange);
-    const signal = generateSignal(lunarInfo, currentRSI, currentMACD.histogram, priceChange);
-
-    return { rsi, macd, bollinger, currentRSI, currentMACD, sentiment, signal, prices };
-  }, [priceHistory, selectedCrypto, marketData, moonPhase, lunarInfo]);
+  // Último dato recibido: el WebSocket si está vivo; si no, la última consulta REST
+  const ultimoDato = Math.max(lastFetch || 0, ...Object.values(livePrices).map((p) => p.lastUpdate || 0)) || null;
 
   // Persist preferences
   useEffect(() => {
-    try { localStorage.setItem("lunar-selected-crypto", selectedCrypto); } catch {}
+    try { localStorage.setItem("lunar-selected-crypto", selectedCrypto); } catch { /* sin almacenamiento */ }
   }, [selectedCrypto]);
 
   useEffect(() => {
-    try { localStorage.setItem("lunar-time-range", timeRange.toString()); } catch {}
+    try { localStorage.setItem("lunar-time-range", timeRange.toString()); } catch { /* sin almacenamiento */ }
   }, [timeRange]);
 
   // Fetch Fear & Greed from CoinMarketCap + Alternative.me fallback (daily refresh + cache)
@@ -218,14 +213,14 @@ function Dashboard() {
         if (!raw) return null;
         const cached = JSON.parse(raw);
         if (Date.now() - cached.ts < ONE_DAY) return cached.data;
-      } catch {}
+      } catch { /* caché ilegible */ }
       return null;
     }
 
     function saveCache(data) {
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
-      } catch {}
+      } catch { /* sin almacenamiento */ }
     }
 
     function parseCMC(d) {
@@ -259,7 +254,8 @@ function Dashboard() {
     }
 
     async function fetchFearGreed() {
-      const cmcKey = localStorage.getItem("cmc-api-key");
+      let cmcKey = null;
+      try { cmcKey = localStorage.getItem("cmc-api-key"); } catch { /* sin almacenamiento */ }
 
       if (cmcKey) {
         try {
@@ -274,7 +270,7 @@ function Dashboard() {
             saveCache(result);
             return;
           }
-        } catch {}
+        } catch { /* se usa Alternative.me */ }
       }
 
       try {
@@ -285,7 +281,7 @@ function Dashboard() {
           setFearGreed(result);
           saveCache(result);
         }
-      } catch {}
+      } catch { /* queda el último valor guardado */ }
     }
 
     // Load cache immediately, then fetch fresh if stale
@@ -299,9 +295,6 @@ function Dashboard() {
     const interval = setInterval(fetchFearGreed, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
-
-  const coin = marketData[selectedCrypto];
-  const priceChange24h = livePrices[selectedCrypto]?.change24h ?? coin?.price_change_percentage_24h ?? 0;
 
   if (loading && Object.keys(marketData).length === 0) {
     return <LoadingSkeleton />;
@@ -319,6 +312,7 @@ function Dashboard() {
           connected={connected}
           error={error}
           onRefresh={refetch}
+          ultimoDato={ultimoDato}
         />
 
         <QuoteBanner />
@@ -332,28 +326,29 @@ function Dashboard() {
               <MoonPhaseCard
                 moonPhase={moonPhase}
                 lunarInfo={lunarInfo}
-                nextPhaseDate={nextPhaseDate}
+                illumination={illumination}
                 detailedPhase={detailedPhase}
                 lunarAge={lunarAge}
                 synodicMonth={synodicMonth}
                 nextMajorPhase={nextMajorPhase}
                 nextNewMoon={nextNewMoon}
                 nextFullMoon={nextFullMoon}
-                signal={indicators?.signal}
+                signal={senal}
               />
               <SentimentIndex
-                sentiment={indicators?.sentiment}
+                sentiment={sentiment}
                 lunarInfo={lunarInfo}
-                currentRSI={indicators?.currentRSI ?? 50}
-                currentMACD={indicators?.currentMACD ?? { histogram: 0 }}
+                detailedPhase={detailedPhase}
+                analisis={analisis}
                 fearGreed={fearGreed}
               />
               <SignalPanel
-                signal={indicators?.signal}
+                senal={senal}
+                analisis={analisis}
                 lunarInfo={lunarInfo}
-                currentRSI={indicators?.currentRSI ?? 50}
-                currentMACD={indicators?.currentMACD ?? { histogram: 0 }}
-                priceChange24h={priceChange24h}
+                detailedPhase={detailedPhase}
+                simbolo={CRYPTO_META[selectedCrypto]?.symbol}
+                error={errorSenal}
               />
             </div>
 
@@ -367,6 +362,7 @@ function Dashboard() {
               tickDirection={tickDirection}
               selectedCrypto={selectedCrypto}
               onSelect={setSelectedCrypto}
+              rango={timeRange === 1 ? "último día" : `últimos ${timeRange} días`}
             />
 
             {/* Portfolio Simulator */}
@@ -380,20 +376,16 @@ function Dashboard() {
               priceHistory={priceHistory}
               selectedCrypto={selectedCrypto}
               cryptoMeta={CRYPTO_META}
-              marketData={marketData}
               lunarInfo={lunarInfo}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               timeRange={timeRange}
               setTimeRange={setTimeRange}
-              indicators={indicators}
               livePrice={livePrices[selectedCrypto]?.price}
             />
 
-            {/* Global Markets - visible on all screens (hidden on xl where sidebar shows it) */}
-            <div className="xl:hidden">
-              <GlobalMetrics />
-            </div>
+            {/* Mercado global: aquí en pantallas medianas y chicas; en xl va en la barra lateral (una sola instancia) */}
+            {!isXl && <GlobalMetrics />}
 
             {/* Mobile-only: Visión Cósmica + Música Ambiental (sidebar items, surfaced for mobile).
                 Rendered conditionally via JS so only ONE instance of each <video> exists in the DOM. */}
@@ -404,8 +396,8 @@ function Dashboard() {
               </div>
             )}
 
-            {/* Lunar Calendar 2026 */}
-            <LunarCalendar2026 />
+            {/* Calendario lunar del año, calculado con el motor lunar */}
+            <LunarCalendarAnual />
 
             {/* Master Secret */}
             <MasterSecret />

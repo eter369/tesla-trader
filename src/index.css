@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
 /* ─── Base ─── */
-* {
+/* El reinicio de márgenes y rellenos lo hace Tailwind en su capa base. Un
+   "* { margin: 0; padding: 0 }" fuera de capa anulaba todas las clases de
+   espaciado (p-5, px-3, mb-5…). Solo se conserva dentro del Portal (inicio de
+   sesión y sello del orbe), que se diseñó con ese reinicio y no se toca. */
+.pl-backdrop, .pl-backdrop *,
+.portal-sello, .portal-sello * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -192,4 +197,14 @@ input:focus-visible {
   background: linear-gradient(135deg, #050510 0%, #0a0e1a 25%, #080c16 50%, #0d1117 75%, #0a0a15 100%);
   background-size: 200% 200%;
   animation: gradientShift 30s ease-in-out infinite;
+}
+
+/* Quien pidió menos movimiento: sin animaciones ni transiciones largas */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

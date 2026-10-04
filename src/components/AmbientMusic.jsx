@@ -169,12 +169,13 @@ export default function AmbientMusic() {
             ref={videoRef}
             loop
             playsInline
-            preload="auto"
+            preload="metadata"
             onDoubleClick={toggleExpand}
             className="w-full block"
             style={{ aspectRatio: "16 / 9", objectFit: "cover" }}
           >
-            <source src="/ambient-music.mp4" type="video/mp4" />
+            {/* #t=0.1: con preload=metadata el navegador muestra ese fotograma en vez de un recuadro negro */}
+            <source src="/ambient-music.mp4#t=0.1" type="video/mp4" />
           </video>
 
           {/* Center play overlay — always visible on mobile, hover on desktop */}
@@ -276,11 +277,13 @@ export default function AmbientMusic() {
           el calendario lunar por mucho z-index que le pusiéramos. */}
       {expanded && createPortal(stage, document.body)}
 
-      {/* Floating mini control — bottom (right on desktop, centered on mobile) */}
+      {/* Control flotante: solo mientras suena (o está ampliado), en la esquina para no tapar contenido */}
+      {(playing || expanded) && (
       <div
-        className="fixed z-50 flex items-center gap-1.5 rounded-full px-3 py-2 shadow-lg backdrop-blur-md transition-all duration-300
-                   bottom-4 right-4 sm:bottom-5 sm:right-5
-                   max-sm:left-1/2 max-sm:right-auto max-sm:-translate-x-1/2"
+        role="region"
+        aria-label="Control de la música ambiental"
+        className="fixed z-50 flex items-center gap-1.5 rounded-full px-2.5 py-1.5 shadow-lg backdrop-blur-md transition-all duration-300
+                   bottom-3 right-3 sm:bottom-5 sm:right-5"
         style={{
           background: "rgba(10, 10, 25, 0.78)",
           border: "1px solid rgba(255,255,255,0.08)",
@@ -297,7 +300,7 @@ export default function AmbientMusic() {
                 background: playing && !muted
                   ? "linear-gradient(to top, #a855f7, #6366f1)"
                   : "#4b5563",
-                height: playing && !muted ? `${8 + Math.random() * 6}px` : "4px",
+                height: playing && !muted ? `${[11, 14, 9, 12][i]}px` : "4px",
                 animation: playing && !muted ? `musicBar 0.${4 + i}s ease-in-out infinite alternate` : "none",
               }}
             />
@@ -364,10 +367,11 @@ export default function AmbientMusic() {
           )}
         </button>
 
-        <span className="text-[9px] text-gray-400 font-mono tracking-wider ml-1 hidden sm:inline">
-          {playing ? (muted ? "MUTED" : "♪ PLAYING") : "PAUSED"}
+        <span className="text-[9px] text-gray-400 font-mono tracking-wider ml-1 hidden sm:inline" aria-live="polite">
+          {playing ? (muted ? "SILENCIADO" : "♪ SONANDO") : "EN PAUSA"}
         </span>
       </div>
+      )}
     </>
   );
 }

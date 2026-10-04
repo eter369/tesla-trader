@@ -10,9 +10,9 @@ export default function MasterSecret() {
         <div className="space-y-3 text-sm text-gray-300 leading-relaxed">
           {[
             { icon: Rocket, color: "text-amber-400", text: <>No operan solo con la Luna. Ella es su <span className="text-amber-400 font-bold">reloj emocional</span>.</> },
-            { icon: Activity, color: "text-cyan-400", text: "Operan la interseccion con indicadores tecnicos (MACD, RSI) + sentimiento social." },
+            { icon: Activity, color: "text-cyan-400", text: "Operan en la intersección de los indicadores técnicos (MACD, RSI) y el sentimiento social." },
             { icon: Eye, color: "text-purple-400", text: "No sigas ciegamente, interpreta la marea." },
-            { icon: Shield, color: "text-emerald-400", text: "La gestion de riesgo siempre prevalece sobre cualquier senal esoterica." },
+            { icon: Shield, color: "text-emerald-400", text: "La gestión del riesgo siempre prevalece sobre cualquier señal esotérica." },
           ].map((item, i) => {
             const Icon = item.icon;
             return (
@@ -26,7 +26,7 @@ export default function MasterSecret() {
         <div className="p-5 rounded-xl bg-gradient-to-br from-amber-900/10 to-amber-800/5 border border-amber-700/20">
           <p className="text-[10px] text-amber-400/50 font-black tracking-[0.2em] mb-2">LA LEY DEL ESPEJO LUNAR</p>
           <p className="text-sm text-gray-300 leading-relaxed">
-            La Luna rige el inconsciente colectivo de los mercados. La intensidad de la energia lunar amplifica la proyeccion emocional de los traders.
+            La Luna rige el inconsciente colectivo de los mercados. La intensidad de la energía lunar amplifica la proyección emocional de los traders.
           </p>
           <div className="flex gap-3 mt-4">
             <div className="flex-1 p-3 rounded-lg bg-red-900/10 border border-red-800/20 text-center">
@@ -34,7 +34,7 @@ export default function MasterSecret() {
               <p className="text-gray-500 text-[11px]">= Sobrecompra</p>
             </div>
             <div className="flex-1 p-3 rounded-lg bg-emerald-900/10 border border-emerald-800/20 text-center">
-              <p className="text-emerald-400 text-xs font-black">PANICO</p>
+              <p className="text-emerald-400 text-xs font-black">PÁNICO</p>
               <p className="text-gray-500 text-[11px]">= Sobreventa</p>
             </div>
           </div>

@@ -1,15 +1,10 @@
 import { useState, useEffect } from "react";
 import { Globe, TrendingUp, TrendingDown, BarChart3, Coins, PieChart, Activity } from "lucide-react";
+import { formatVolume as formatLargeNumber, formatChange, numero, porcentaje } from "../utils/format";
+import { fechaLima } from "../utils/lunar";
 
-function formatLargeNumber(n) {
-  if (!n) return "$0";
-  if (n >= 1e12) return "$" + (n / 1e12).toFixed(2) + "T";
-  if (n >= 1e9) return "$" + (n / 1e9).toFixed(1) + "B";
-  if (n >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
-  return "$" + n.toLocaleString();
-}
-
-function MetricRow({ icon: Icon, iconColor, label, value, sub, change }) {
+function MetricRow({ icon, iconColor, label, value, sub, change }) {
+  const Icon = icon;
   return (
     <div className="flex items-center gap-2.5 py-2 border-b border-gray-800/15 last:border-0">
       <div
@@ -33,7 +28,7 @@ function MetricRow({ icon: Icon, iconColor, label, value, sub, change }) {
             className="text-[10px] font-bold tabular-nums"
             style={{ color: change >= 0 ? "#10b981" : "#ef4444" }}
           >
-            {change >= 0 ? "+" : ""}{change.toFixed(1)}%
+            {formatChange(change, 1)}
           </span>
         </div>
       )}
@@ -52,119 +47,126 @@ function DominanceBar({ btc, eth }) {
         <div
           className="h-full transition-all duration-1000"
           style={{ width: `${btc}%`, background: "#f7931a" }}
-          title={`BTC ${btc.toFixed(1)}%`}
+          title={`BTC ${porcentaje(btc / 100, 1)}`}
         />
         <div
           className="h-full transition-all duration-1000"
           style={{ width: `${eth}%`, background: "#627eea" }}
-          title={`ETH ${eth.toFixed(1)}%`}
+          title={`ETH ${porcentaje(eth / 100, 1)}`}
         />
         <div
           className="h-full transition-all duration-1000"
           style={{ width: `${other}%`, background: "#4b5563" }}
-          title={`Otros ${other.toFixed(1)}%`}
+          title={`Otros ${porcentaje(other / 100, 1)}`}
         />
       </div>
       <div className="flex justify-between mt-1">
-        <span className="text-[8px] font-bold" style={{ color: "#f7931a" }}>BTC {btc.toFixed(1)}%</span>
-        <span className="text-[8px] font-bold" style={{ color: "#627eea" }}>ETH {eth.toFixed(1)}%</span>
-        <span className="text-[8px] font-bold text-gray-500">Otros {other.toFixed(1)}%</span>
+        <span className="text-[9px] font-bold" style={{ color: "#f7931a" }}>BTC {porcentaje(btc / 100, 1)}</span>
+        <span className="text-[9px] font-bold" style={{ color: "#627eea" }}>ETH {porcentaje(eth / 100, 1)}</span>
+        <span className="text-[9px] font-bold text-gray-500">Otros {porcentaje(other / 100, 1)}</span>
       </div>
     </div>
   );
 }
 
+async function pedirCMC(apiKey) {
+  const res = await fetch("https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest", {
+    headers: { "X-CMC_PRO_API_KEY": apiKey, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error("CoinMarketCap respondió " + res.status);
+  const d = (await res.json())?.data;
+  if (!d) throw new Error("CoinMarketCap sin datos");
+  const usd = d.quote?.USD;
+  return {
+    source: "CoinMarketCap",
+    metrics: {
+      totalMarketCap: usd?.total_market_cap || 0,
+      totalVolume24h: usd?.total_volume_24h || 0,
+      marketCapChange24h: usd?.total_market_cap_yesterday_percentage_change || 0,
+      btcDominance: d.btc_dominance || 0,
+      ethDominance: d.eth_dominance || 0,
+      activeCryptos: d.active_cryptocurrencies || 0,
+      activeExchanges: d.active_exchanges || 0,
+      tipoPlataformas: "exchanges",
+      defiVolume24h: usd?.defi_volume_24h || 0,
+      defiMarketCap: usd?.defi_market_cap || 0,
+      stablecoinVolume24h: usd?.stablecoin_volume_24h || 0,
+    },
+  };
+}
+
+async function pedirCoinGecko() {
+  const res = await fetch("https://api.coingecko.com/api/v3/global");
+  if (!res.ok) throw new Error("CoinGecko respondió " + res.status);
+  const d = (await res.json())?.data;
+  if (!d) throw new Error("CoinGecko sin datos");
+  return {
+    source: "CoinGecko",
+    metrics: {
+      totalMarketCap: d.total_market_cap?.usd || 0,
+      totalVolume24h: d.total_volume?.usd || 0,
+      marketCapChange24h: d.market_cap_change_percentage_24h_usd || 0,
+      btcDominance: d.market_cap_percentage?.btc || 0,
+      ethDominance: d.market_cap_percentage?.eth || 0,
+      activeCryptos: d.active_cryptocurrencies || 0,
+      activeExchanges: d.markets || 0,
+      tipoPlataformas: "mercados",
+      defiVolume24h: null,
+      defiMarketCap: null,
+      stablecoinVolume24h: null,
+    },
+  };
+}
+
+// Último dato bueno guardado en el navegador: si la API limita los pedidos se
+// muestra ese, con la hora en que se obtuvo.
+const CLAVE_GLOBAL = "t369-mercado-global";
+const CINCO_MIN = 5 * 60 * 1000;
+function leerGuardado() {
+  try {
+    return JSON.parse(localStorage.getItem(CLAVE_GLOBAL)) || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function GlobalMetrics() {
-  const [metrics, setMetrics] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState(null);
+  const [guardado] = useState(leerGuardado);
+  const [metrics, setMetrics] = useState(guardado?.metrics ?? null);
+  const [loading, setLoading] = useState(!guardado);
+  const [source, setSource] = useState(guardado?.source ?? null);
+  const [actualizado, setActualizado] = useState(guardado?.ts ?? null);
 
+  // CoinMarketCap si la persona guardó su clave; si no (o si falla), CoinGecko. Cada 5 minutos.
   useEffect(() => {
-    let cmcKey = null;
-    try { cmcKey = localStorage.getItem("cmc-api-key"); } catch {}
-
-    if (cmcKey) {
-      fetchCMC(cmcKey);
-    } else {
-      fetchCoinGeckoFallback();
-    }
-
-    // Refresh every 2 minutes
-    const interval = setInterval(() => {
-      let key = null;
-      try { key = localStorage.getItem("cmc-api-key"); } catch {}
-      if (key) fetchCMC(key);
-      else fetchCoinGeckoFallback();
-    }, 120000);
-
-    return () => clearInterval(interval);
+    let vivo = true;
+    const cargar = async () => {
+      const previo = leerGuardado();
+      if (previo && Date.now() - previo.ts < CINCO_MIN) return; // ya se muestra desde la caché
+      let clave = null;
+      try { clave = localStorage.getItem("cmc-api-key"); } catch { /* sin almacenamiento */ }
+      let r = clave ? await pedirCMC(clave).catch(() => null) : null;
+      if (!r) r = await pedirCoinGecko().catch(() => null);
+      if (!vivo) return;
+      if (r) {
+        const ts = Date.now();
+        setMetrics(r.metrics);
+        setSource(r.source);
+        setActualizado(ts);
+        try { localStorage.setItem(CLAVE_GLOBAL, JSON.stringify({ ...r, ts })); } catch { /* sin almacenamiento */ }
+      }
+      setLoading(false);
+    };
+    cargar();
+    const id = setInterval(cargar, CINCO_MIN);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
   }, []);
 
-  async function fetchCMC(apiKey) {
-    try {
-      const res = await fetch(
-        "https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest",
-        {
-          headers: {
-            "X-CMC_PRO_API_KEY": apiKey,
-            Accept: "application/json",
-          },
-        }
-      );
-      if (!res.ok) throw new Error("CMC error");
-      const json = await res.json();
-      const d = json?.data;
-      if (!d) throw new Error("No data");
-
-      const usd = d.quote?.USD;
-      setMetrics({
-        totalMarketCap: usd?.total_market_cap || 0,
-        totalVolume24h: usd?.total_volume_24h || 0,
-        marketCapChange24h: usd?.total_market_cap_yesterday_percentage_change || 0,
-        btcDominance: d.btc_dominance || 0,
-        ethDominance: d.eth_dominance || 0,
-        activeCryptos: d.active_cryptocurrencies || 0,
-        activeExchanges: d.active_exchanges || 0,
-        defiVolume24h: usd?.defi_volume_24h || 0,
-        defiMarketCap: usd?.defi_market_cap || 0,
-        stablecoinVolume24h: usd?.stablecoin_volume_24h || 0,
-      });
-      setSource("CoinMarketCap");
-      setLoading(false);
-    } catch {
-      fetchCoinGeckoFallback();
-    }
-  }
-
-  async function fetchCoinGeckoFallback() {
-    try {
-      const res = await fetch("https://api.coingecko.com/api/v3/global");
-      if (!res.ok) throw new Error("CG error");
-      const json = await res.json();
-      const d = json?.data;
-      if (!d) throw new Error("No data");
-
-      setMetrics({
-        totalMarketCap: d.total_market_cap?.usd || 0,
-        totalVolume24h: d.total_volume?.usd || 0,
-        marketCapChange24h: d.market_cap_change_percentage_24h_usd || 0,
-        btcDominance: d.market_cap_percentage?.btc || 0,
-        ethDominance: d.market_cap_percentage?.eth || 0,
-        activeCryptos: d.active_cryptocurrencies || 0,
-        activeExchanges: d.markets || 0,
-        defiVolume24h: null,
-        defiMarketCap: null,
-        stablecoinVolume24h: null,
-      });
-      setSource("CoinGecko");
-      setLoading(false);
-    } catch {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div className="card rounded-2xl overflow-hidden mt-4">
+    <div className="card rounded-2xl overflow-hidden mt-4 mb-5">
       {/* Top accent */}
       <div
         className="h-px"
@@ -176,10 +178,12 @@ export default function GlobalMetrics() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Globe size={14} className="text-emerald-400" />
-            <h3 className="text-xs font-black text-gray-200 tracking-tight">Global Markets</h3>
+            <h3 className="text-xs font-black text-gray-200 tracking-tight">Mercado cripto global</h3>
           </div>
           {source && (
-            <span className="text-[8px] text-gray-600 font-mono">{source}</span>
+            <span className="text-[9px] text-gray-500 font-mono" title="Fuente y hora de Lima de la última consulta">
+              {source}{actualizado ? ` · ${fechaLima(actualizado, { hour: "2-digit", minute: "2-digit", hour12: false })}` : ""}
+            </span>
           )}
         </div>
 
@@ -201,22 +205,22 @@ export default function GlobalMetrics() {
             <MetricRow
               icon={BarChart3}
               iconColor="#10b981"
-              label="Market Cap Total"
+              label="Capitalización total (24 h)"
               value={formatLargeNumber(metrics.totalMarketCap)}
               change={metrics.marketCapChange24h}
             />
             <MetricRow
               icon={Activity}
               iconColor="#22d3ee"
-              label="Volumen 24h"
+              label={`Volumen global 24 h (${source})`}
               value={formatLargeNumber(metrics.totalVolume24h)}
             />
             <MetricRow
               icon={Coins}
               iconColor="#f59e0b"
-              label="Criptos Activas"
-              value={metrics.activeCryptos.toLocaleString()}
-              sub={`${metrics.activeExchanges} exchanges`}
+              label="Criptomonedas activas"
+              value={numero(metrics.activeCryptos)}
+              sub={`${numero(metrics.activeExchanges)} ${metrics.tipoPlataformas}`}
             />
 
             {/* DeFi & Stablecoins (CMC only) */}
@@ -224,16 +228,16 @@ export default function GlobalMetrics() {
               <MetricRow
                 icon={PieChart}
                 iconColor="#a78bfa"
-                label="DeFi Vol 24h"
+                label="Volumen DeFi 24 h"
                 value={formatLargeNumber(metrics.defiVolume24h)}
-                sub={`MCap: ${formatLargeNumber(metrics.defiMarketCap)}`}
+                sub={`Cap.: ${formatLargeNumber(metrics.defiMarketCap)}`}
               />
             )}
             {metrics.stablecoinVolume24h > 0 && (
               <MetricRow
                 icon={Coins}
                 iconColor="#6ee7b7"
-                label="Stablecoin Vol 24h"
+                label="Volumen de stablecoins 24 h"
                 value={formatLargeNumber(metrics.stablecoinVolume24h)}
               />
             )}

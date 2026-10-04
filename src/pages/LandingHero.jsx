@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // ─── Icons ───
 function ChevronDown({ size = 14 }) {
@@ -74,12 +74,19 @@ function WaitlistButtonLight() {
 }
 
 // ─── Particles ───
+// Posiciones pseudoaleatorias fijas (iguales en cada visita)
+const PARTICULAS = (() => {
+  let s = 369;
+  const r = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+  return Array.from({ length: 30 }, (_, i) => ({
+    id: i, x: r() * 100, y: r() * 100,
+    size: r() * 2 + 0.5, duration: 15 + r() * 25,
+    delay: r() * 10, opacity: r() * 0.3 + 0.05,
+  }));
+})();
+
 function Particles() {
-  const particles = useMemo(() => Array.from({ length: 30 }, (_, i) => ({
-    id: i, x: Math.random() * 100, y: Math.random() * 100,
-    size: Math.random() * 2 + 0.5, duration: 15 + Math.random() * 25,
-    delay: Math.random() * 10, opacity: Math.random() * 0.3 + 0.05,
-  })), []);
+  const particles = PARTICULAS;
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-[2]">

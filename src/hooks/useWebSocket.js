@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 
 const BINANCE_WS = "wss://stream.binance.com:9443/ws";
 
@@ -7,103 +7,96 @@ const SYMBOL_MAP = {
   ethereum: "ethusdt",
   solana: "solusdt",
 };
+const POR_SIMBOLO = Object.fromEntries(Object.entries(SYMBOL_MAP).map(([id, s]) => [s, id]));
 
+// Precios en vivo por WebSocket de Binance. Los mensajes llegan varias veces
+// por segundo; se juntan y la pantalla se actualiza una vez por segundo para
+// no recalcular todo el tablero con cada tick.
 export function useWebSocket() {
   const [livePrices, setLivePrices] = useState({});
   const [connected, setConnected] = useState(false);
   const [tickDirection, setTickDirection] = useState({});
-  const wsRef = useRef(null);
-  const reconnectRef = useRef(null);
-  const prevPricesRef = useRef({});
-
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN ||
-        wsRef.current?.readyState === WebSocket.CONNECTING) return;
-
-    // Clear any pending reconnect
-    if (reconnectRef.current) {
-      clearTimeout(reconnectRef.current);
-      reconnectRef.current = null;
-    }
-
-    try {
-      const streams = Object.values(SYMBOL_MAP).map(s => `${s}@ticker`).join("/");
-      const ws = new WebSocket(`${BINANCE_WS}/${streams}`);
-
-      ws.onopen = () => {
-        setConnected(true);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.e === "24hrTicker") {
-            const symbol = data.s.toLowerCase();
-            const cryptoId = Object.entries(SYMBOL_MAP).find(([, v]) => v === symbol)?.[0];
-            if (!cryptoId) return;
-
-            const price = parseFloat(data.c);
-            const prevPrice = prevPricesRef.current[cryptoId];
-
-            if (prevPrice && prevPrice !== price) {
-              setTickDirection(prev => ({
-                ...prev,
-                [cryptoId]: price > prevPrice ? "up" : "down"
-              }));
-              setTimeout(() => {
-                setTickDirection(prev => ({ ...prev, [cryptoId]: null }));
-              }, 600);
-            }
-
-            prevPricesRef.current[cryptoId] = price;
-
-            setLivePrices(prev => ({
-              ...prev,
-              [cryptoId]: {
-                price,
-                change24h: parseFloat(data.P),
-                high24h: parseFloat(data.h),
-                low24h: parseFloat(data.l),
-                volume: parseFloat(data.v) * price,
-                quoteVolume: parseFloat(data.q),
-                trades: parseInt(data.n),
-                lastUpdate: Date.now(),
-              }
-            }));
-          }
-        } catch {
-          // ignore parse errors
-        }
-      };
-
-      ws.onclose = () => {
-        setConnected(false);
-        wsRef.current = null;
-        // Reconnect after delay (prevents rapid reconnection loops)
-        if (!reconnectRef.current) {
-          reconnectRef.current = setTimeout(connect, 3000);
-        }
-      };
-
-      ws.onerror = () => {
-        // onclose will fire after this — let onclose handle reconnection
-        try { ws.close(); } catch {}
-      };
-
-      wsRef.current = ws;
-    } catch {
-      // WebSocket constructor failed — retry
-      reconnectRef.current = setTimeout(connect, 5000);
-    }
-  }, []);
 
   useEffect(() => {
-    connect();
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+    let ws = null;
+    let reintento = null;
+    let cerrado = false;
+    let pendientes = {};
+    const previos = {};
+
+    const conectar = () => {
+      if (cerrado) return;
+      try {
+        const streams = Object.values(SYMBOL_MAP).map((s) => `${s}@ticker`).join("/");
+        ws = new WebSocket(`${BINANCE_WS}/${streams}`);
+        ws.onopen = () => setConnected(true);
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.e !== "24hrTicker") return;
+            const id = POR_SIMBOLO[data.s.toLowerCase()];
+            if (!id) return;
+            const price = parseFloat(data.c);
+            pendientes[id] = {
+              price,
+              change24h: parseFloat(data.P),
+              high24h: parseFloat(data.h),
+              low24h: parseFloat(data.l),
+              volume: parseFloat(data.v) * price,
+              quoteVolume: parseFloat(data.q),
+              trades: parseInt(data.n),
+              lastUpdate: Date.now(),
+            };
+          } catch {
+            // mensaje ilegible: se ignora
+          }
+        };
+        ws.onclose = () => {
+          setConnected(false);
+          ws = null;
+          if (!cerrado) reintento = setTimeout(conectar, 3000);
+        };
+        ws.onerror = () => {
+          try { ws?.close(); } catch { /* ya estaba cerrado */ }
+        };
+      } catch {
+        reintento = setTimeout(conectar, 5000);
+      }
     };
-  }, [connect]);
+
+    // Una actualización por segundo con lo que llegó
+    const volcar = setInterval(() => {
+      const ids = Object.keys(pendientes);
+      if (!ids.length) return;
+      const lote = pendientes;
+      pendientes = {};
+      const direccion = {};
+      for (const id of ids) {
+        const antes = previos[id];
+        if (antes && antes !== lote[id].price) direccion[id] = lote[id].price > antes ? "up" : "down";
+        previos[id] = lote[id].price;
+      }
+      setLivePrices((prev) => ({ ...prev, ...lote }));
+      if (Object.keys(direccion).length) {
+        setTickDirection((prev) => ({ ...prev, ...direccion }));
+        setTimeout(() => {
+          setTickDirection((prev) => {
+            const limpio = { ...prev };
+            for (const id of Object.keys(direccion)) limpio[id] = null;
+            return limpio;
+          });
+        }, 600);
+      }
+    }, 1000);
+
+    conectar();
+    return () => {
+      cerrado = true;
+      clearTimeout(reintento);
+      clearInterval(volcar);
+      try { ws?.close(); } catch { /* ya estaba cerrado */ }
+    };
+  }, []);
 
   return { livePrices, connected, tickDirection };
 }

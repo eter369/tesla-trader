@@ -1,15 +1,21 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  getMoonPhase,
+  estadoLunar,
+  eventosLunares,
   getLunarPhaseInfo,
-  getMoonIllumination,
   getDetailedPhaseName,
   getNextMajorPhase,
   getNextNewMoon,
   getNextFullMoon,
-  getLunarAge,
-  SYNODIC_MONTH,
+  fechaLima,
+  diaLima,
 } from "../utils/lunar";
+
+// Mediodía de Lima (17:00 UT) del día de calendario `n` días desde hoy
+function mediodiaLima(n, ahora) {
+  const [a, m, d] = diaLima(ahora).split("-").map(Number);
+  return Date.UTC(a, m - 1, d + n, 17, 0, 0);
+}
 
 export function useMoonPhase() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -19,60 +25,49 @@ export function useMoonPhase() {
     return () => clearInterval(timer);
   }, []);
 
-  const moonPhase = getMoonPhase(currentTime);
-  const lunarInfo = getLunarPhaseInfo(moonPhase);
-  const illumination = getMoonIllumination(moonPhase);
-  const detailedPhase = getDetailedPhaseName(moonPhase);
-  const lunarAge = getLunarAge(moonPhase);
-  const nextMajorPhase = getNextMajorPhase(currentTime);
-  const nextNewMoon = useMemo(() => getNextNewMoon(currentTime), [currentTime.toDateString()]);
-  const nextFullMoon = useMemo(() => getNextFullMoon(currentTime), [currentTime.toDateString()]);
+  // la Luna se recalcula una vez por minuto: el reloj de la cabecera sigue al segundo
+  const minuto = Math.floor(currentTime.getTime() / 60000);
+  const lunar = useMemo(() => {
+    const ahora = new Date(minuto * 60000);
+    const estado = estadoLunar(ahora);
+    return {
+      moonPhase: estado.fase,
+      lunarInfo: getLunarPhaseInfo(estado.fase),
+      illumination: Math.round(estado.iluminacion * 100),
+      detailedPhase: getDetailedPhaseName(estado.fase),
+      lunarAge: estado.edad,
+      synodicMonth: estado.duracion,
+      nextMajorPhase: getNextMajorPhase(ahora),
+      nextNewMoon: getNextNewMoon(ahora),
+      nextFullMoon: getNextFullMoon(ahora),
+    };
+  }, [minuto]);
 
-  const nextPhaseDate = useMemo(() => {
-    for (let i = 1; i <= 30; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const p = getMoonPhase(d);
-      const info = getLunarPhaseInfo(p);
-      if (info.name !== lunarInfo.name) {
-        return { date: d, phase: info };
-      }
-    }
-    return null;
-  }, [lunarInfo.name]);
-
+  // Calendario de ayer a 7 días, por días de Lima: la iluminación es la del
+  // mediodía y, si ese día hay una fase principal, el día lleva su icono y su hora.
+  const diaHoy = diaLima(currentTime.getTime());
   const lunarCalendar = useMemo(() => {
+    const ahora = Date.parse(diaHoy + "T17:00:00Z");
+    const eventos = eventosLunares(mediodiaLima(-2, ahora), mediodiaLima(9, ahora));
     const days = [];
     for (let i = -1; i <= 7; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const p = getMoonPhase(d);
-      const info = getLunarPhaseInfo(p);
-      const illum = getMoonIllumination(p);
+      const mediodia = mediodiaLima(i, ahora);
+      const dia = diaLima(mediodia);
+      const estado = estadoLunar(new Date(mediodia));
+      const evento = eventos.find((e) => diaLima(e.time) === dia) || null;
+      const info = getLunarPhaseInfo(estado.fase);
       days.push({
-        date: new Date(d),
-        dayLabel: i === 0 ? "Hoy" : i === 1 ? "Mañana" : d.toLocaleDateString("es-ES", { weekday: "short" }),
-        dateLabel: d.toLocaleDateString("es-ES", { day: "numeric", month: "short" }),
-        phase: info,
-        illumination: illum,
+        date: new Date(mediodia),
+        dayLabel: i === 0 ? "Hoy" : i === 1 ? "Mañana" : fechaLima(mediodia, { weekday: "short" }).replace(".", ""),
+        dateLabel: fechaLima(mediodia, { day: "numeric", month: "short" }).replace(".", ""),
+        phase: evento ? { ...info, icon: evento.icono, name: evento.nombre } : { ...info, icon: getDetailedPhaseName(estado.fase).icon },
+        evento: evento ? { nombre: evento.nombre, hora: fechaLima(evento.time, { hour: "2-digit", minute: "2-digit", hour12: false }) } : null,
+        illumination: Math.round(estado.iluminacion * 100),
         isToday: i === 0,
       });
     }
     return days;
-  }, [currentTime.toDateString()]);
+  }, [diaHoy]);
 
-  return {
-    currentTime,
-    moonPhase,
-    lunarInfo,
-    illumination,
-    nextPhaseDate,
-    lunarCalendar,
-    detailedPhase,
-    lunarAge,
-    synodicMonth: SYNODIC_MONTH,
-    nextMajorPhase,
-    nextNewMoon,
-    nextFullMoon,
-  };
+  return { currentTime, ...lunar, lunarCalendar };
 }

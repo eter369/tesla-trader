@@ -35,8 +35,9 @@ function darkSidePath(cx, cy, r, phase) {
   );
 }
 
-export default function AnimatedMoon({ phase, size = 180 }) {
-  const illumination = getMoonIllumination(phase);
+// illuminationPct: iluminación real (Meeus); si no llega, se aproxima por la fase
+export default function AnimatedMoon({ phase, size = 180, illuminationPct }) {
+  const illumination = illuminationPct ?? getMoonIllumination(phase);
   const r = size / 2 - 10;
   const cx = size / 2;
   const cy = size / 2;
@@ -109,10 +110,10 @@ export default function AnimatedMoon({ phase, size = 180 }) {
 
       {/* Center text — illumination % */}
       <text x={cx} y={cy + 2} textAnchor="middle" fontSize={size * 0.14} fill="#fde68a" fontWeight="800" opacity="0.95" fontFamily="'Inter', sans-serif" style={{ paintOrder: "stroke", stroke: "#0a0a14", strokeWidth: 3, strokeLinejoin: "round" }}>
-        {illumination}%
+        {illumination} %
       </text>
       <text x={cx} y={cy + size * 0.1} textAnchor="middle" fontSize={size * 0.055} fill="#fbbf24" opacity="0.7" fontFamily="'Inter', sans-serif" letterSpacing="0.1em" style={{ paintOrder: "stroke", stroke: "#0a0a14", strokeWidth: 2, strokeLinejoin: "round" }}>
-        ILUMINACION
+        ILUMINACIÓN
       </text>
     </svg>
   );
